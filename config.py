@@ -13,7 +13,6 @@ MODELS_DIR = os.path.join(PROJECT_ROOT, "saved_models")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-SEED = 42
 
 
 FIG_FORMATS = ["pdf", "svg"]

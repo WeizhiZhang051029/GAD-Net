@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import mutual_info_regression
 import warnings
 warnings.filterwarnings("ignore")
@@ -84,7 +82,7 @@ def compute_feature_correlations(X, y, feature_names):
     df_full = pd.DataFrame(X, columns=feature_names)
     df_full[config.TARGET_COL] = y
     corr_matrix = df_full[feature_names].corr().values
-    mi_scores = mutual_info_regression(X, y, random_state=config.SEED)
+    mi_scores = mutual_info_regression(X, y)
     mi_max = float(np.max(mi_scores)) if mi_scores.size else 0.0
     if mi_max > 0.0 and np.isfinite(mi_max):
         mi_scores = mi_scores / mi_max
@@ -98,90 +96,6 @@ def compute_feature_correlations(X, y, feature_names):
         "mutual_info": mi_scores,
     }).sort_values("abs_pearson", ascending=False)
     return corr_matrix, mi_scores, feature_corr_df
-
-
-def preprocess_data(data_path=None, return_raw=False, split_seed=None):
-    """Load and split data with split-specific, train-only preprocessing.
-
-    The split is stratified by yield-strength bins.  All fitted preprocessing
-    objects (feature/target scalers and inverse-frequency weights) are fitted
-    on the training partition and then applied to validation/test partitions.
-    """
-    df = load_raw_data(data_path)
-
-
-    feature_names = [c for c in df.columns if c != config.TARGET_COL]
-    X_raw = df[feature_names].values.astype(np.float64)
-    y_raw = df[config.TARGET_COL].values.astype(np.float64)
-
-    if split_seed is None:
-        split_seed = config.SEED
-
-
-    split_labels = pd.qcut(y_raw, q=10, labels=False, duplicates="drop").astype(int)
-    indices = np.arange(len(y_raw))
-    idx_tv, idx_test = train_test_split(
-        indices, test_size=config.TEST_RATIO, random_state=split_seed,
-        stratify=split_labels)
-    val_adj = config.VAL_RATIO / (1 - config.TEST_RATIO)
-    idx_train, idx_val = train_test_split(
-        idx_tv, test_size=val_adj, random_state=split_seed,
-        stratify=split_labels[idx_tv])
-
-    X_train_raw, X_val_raw, X_test_raw = X_raw[idx_train], X_raw[idx_val], X_raw[idx_test]
-    y_train_raw, y_val_raw, y_test_raw = y_raw[idx_train], y_raw[idx_val], y_raw[idx_test]
-
-    # Fit transforms on the training partition and reuse them for validation/test.
-    scaler_X, scaler_y = StandardScaler(), StandardScaler()
-    X_train = scaler_X.fit_transform(X_train_raw)
-    X_val = scaler_X.transform(X_val_raw)
-    X_test = scaler_X.transform(X_test_raw)
-    y_train = scaler_y.fit_transform(y_train_raw.reshape(-1, 1)).ravel()
-    y_val = scaler_y.transform(y_val_raw.reshape(-1, 1)).ravel()
-    y_test = scaler_y.transform(y_test_raw.reshape(-1, 1)).ravel()
-
-
-    sw_train, bi_train, bin_counts, weight_bins = compute_sample_imbalance_weights(
-        y_train_raw, num_bins=10, strategy="inverse_freq")
-    _, bi_val, _, _ = compute_sample_imbalance_weights(
-        y_val_raw, num_bins=10, strategy="inverse_freq", bins=weight_bins)
-    _, bi_test, _, _ = compute_sample_imbalance_weights(
-        y_test_raw, num_bins=10, strategy="inverse_freq", bins=weight_bins)
-    sw_val = np.ones(len(y_val), dtype=np.float64)
-    sw_test = np.ones(len(y_test), dtype=np.float64)
-
-
-    # Estimate graph statistics from the training partition only.
-    corr_matrix, mi_scores, feature_corr_df = compute_feature_correlations(
-        X_train_raw, y_train_raw, feature_names)
-
-    print(f"[Data] Split: Train={len(y_train)}, Val={len(y_val)}, Test={len(y_test)}")
-
-    node_types = np.array([config.NODE_TYPE_MAP[n] for n in feature_names])
-
-    data_dict = {
-        "feature_names": feature_names, "num_features": len(feature_names),
-        "node_types": node_types,
-        "X_train": X_train, "y_train": y_train,
-        "X_val": X_val, "y_val": y_val,
-        "X_test": X_test, "y_test": y_test,
-        "sw_train": sw_train, "sw_val": sw_val, "sw_test": sw_test,
-        "scaler_X": scaler_X, "scaler_y": scaler_y,
-        "corr_matrix": corr_matrix, "mi_scores": mi_scores,
-        "feature_corr_df": feature_corr_df, "bin_counts": bin_counts,
-        "y_raw_train": y_train_raw,
-        "y_raw_val": y_val_raw,
-        "y_raw_test": y_test_raw,
-        "split_seed": int(split_seed),
-        "train_indices": idx_train,
-        "val_indices": idx_val,
-        "test_indices": idx_test,
-        "weight_bins": weight_bins,
-    }
-    if return_raw:
-        data_dict["X_raw"] = X_raw
-        data_dict["y_raw"] = y_raw
-    return data_dict
 
 
 def create_dataloaders(data_dict, batch_size=None):

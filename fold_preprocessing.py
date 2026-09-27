@@ -1,7 +1,6 @@
 """Leakage-safe preprocessing for stratified K-fold experiments."""
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from data_preprocessing import (
     load_raw_data, compute_sample_imbalance_weights,
@@ -10,7 +9,7 @@ from data_preprocessing import (
 import config
 
 
-def prepare_index_split(data_path, train_idx, val_idx, test_idx, split_seed, return_raw=False):
+def prepare_index_split(data_path, train_idx, val_idx, test_idx, return_raw=False):
     """Fit every preprocessing object on train_idx and apply it to val/test."""
     df = load_raw_data(data_path)
     feature_names = [c for c in df.columns if c != config.TARGET_COL]
@@ -41,7 +40,7 @@ def prepare_index_split(data_path, train_idx, val_idx, test_idx, split_seed, ret
         "scaler_X": scaler_X, "scaler_y": scaler_y, "corr_matrix": corr, "mi_scores": mi,
         "feature_corr_df": corr_df, "bin_counts": bin_counts, "weight_bins": weight_bins,
         "y_raw_train": ytr_raw, "y_raw_val": yv_raw, "y_raw_test": yte_raw,
-        "split_seed": int(split_seed), "train_indices": train_idx, "val_indices": val_idx, "test_indices": test_idx,
+        "train_indices": train_idx, "val_indices": val_idx, "test_indices": test_idx,
         "tail_bounds": (float(np.percentile(ytr_raw, config.ADABOOST_TAIL_PERCENTILE)),
                         float(np.percentile(ytr_raw, 100 - config.ADABOOST_TAIL_PERCENTILE))),
     }

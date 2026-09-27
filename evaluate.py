@@ -152,7 +152,7 @@ def paired_wilcoxon_holm(reference_rows, comparison_rows,
                          metric_names=("RMSE", "MAPE", "R2", "Tail_MAE")):
     """Run paired two-sided Wilcoxon tests and Holm correction."""
     def key(row):
-        return (int(row["seed"]), int(row["fold"]))
+        return row["run_id"]
 
     ref = {key(row): row for row in reference_rows}
     cmp = {key(row): row for row in comparison_rows}
@@ -184,4 +184,4 @@ def paired_wilcoxon_holm(reference_rows, comparison_rows,
         row["p_holm"] = float(adjusted[i])
         row["significant"] = bool(adjusted[i] < 0.05)
     return {"method": "two-sided paired Wilcoxon signed-rank; Holm correction",
-            "pair_key": "seed,fold", "comparisons": raw}
+            "pair_key": "run_id", "comparisons": raw}

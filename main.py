@@ -1,5 +1,5 @@
 
-"""Run the manuscript's main GAD-Net protocol: 5 folds x 5 fixed seeds."""
+"""Run the manuscript's main GAD-Net protocol with repeated stratified folds."""
 import argparse
 import json
 import os
@@ -14,10 +14,10 @@ from fold_preprocessing import prepare_index_split
 from data_preprocessing import create_dataloaders, load_raw_data
 from graph_construction import build_full_graph
 from models.gad_net import GADNet
-from train import evaluate_model, set_seed, train_gad_net
+from train import evaluate_model, train_gad_net
 from evaluate import compute_all_metrics
 
-SEEDS = (48, 60, 72, 66, 67)
+N_REPEATS = 5
 
 
 def make_model(num_features):
@@ -39,17 +39,16 @@ def make_model(num_features):
 
 
 # Stratify by yield-strength deciles and evaluate each test fold once.
-def split_plan(y, seed):
+def split_plan(y):
     labels = pd.qcut(y, q=10, labels=False, duplicates="drop").astype(int)
     indices = np.arange(len(y))
-    splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
+    splitter = StratifiedKFold(n_splits=5, shuffle=True)
     for fold, (train_val_pos, test_pos) in enumerate(splitter.split(indices, labels), 1):
         train_val = indices[train_val_pos]
         test = indices[test_pos]
         train, val = train_test_split(
             train_val,
             test_size=15 / 85,
-            random_state=seed + fold,
             stratify=labels[train_val],
         )
         yield fold, train, val, test
@@ -73,17 +72,15 @@ def aggregate(rows):
         }
     return result
 
-# Run the fixed five-seed, five-fold protocol.
-def run_main(data_path, device, output, seeds):
+# Run the repeated five-fold protocol.
+def run_main(data_path, device, output):
     os.makedirs(output, exist_ok=True)
     target = load_raw_data(data_path)[config.TARGET_COL].to_numpy(dtype=float)
     rows = []
-    for seed in seeds:
-        for fold, train_idx, val_idx, test_idx in split_plan(target, int(seed)):
-            run_seed = int(seed) * 100 + fold
-            run_id = f"seed{seed}_fold{fold}"
-            set_seed(run_seed)
-            data = prepare_index_split(data_path, train_idx, val_idx, test_idx, int(seed))
+    for repeat in range(1, N_REPEATS + 1):
+        for fold, train_idx, val_idx, test_idx in split_plan(target):
+            run_id = f"repeat{repeat}_fold{fold}"
+            data = prepare_index_split(data_path, train_idx, val_idx, test_idx)
             graph = build_full_graph(data)
             train_loader, val_loader, test_loader = create_dataloaders(data)
             model = make_model(data["num_features"])
@@ -92,7 +89,7 @@ def run_main(data_path, device, output, seeds):
             try:
                 model, _ = train_gad_net(
                     model, train_loader, val_loader, graph, data,
-                    use_adaboost=True, verbose=False, seed=run_seed)
+                    use_adaboost=True, verbose=False)
                 predicted, observed, _ = evaluate_model(
                     model, test_loader, data["scaler_y"], graph_data=graph,
                     model_type="gad_net", tail_bounds=data["tail_bounds"])
@@ -101,7 +98,7 @@ def run_main(data_path, device, output, seeds):
             metrics = compute_all_metrics(observed, predicted,
                                           tail_bounds=data["tail_bounds"])
             row = {
-                "seed": int(seed), "fold": int(fold), "run_id": run_id,
+                "repeat": int(repeat), "fold": int(fold), "run_id": run_id,
                 "train_n": int(len(train_idx)), "val_n": int(len(val_idx)),
                 "test_n": int(len(test_idx)),
                 "metrics": {key: float(value) for key, value in metrics.items()},
@@ -120,16 +117,15 @@ def main():
     parser.add_argument("--data", default=config.DATA_PATH)
     parser.add_argument("--gpu", type=int, default=0, help="GPU index; use -1 for CPU")
     parser.add_argument("--output", default="results_5fold_cv/main")
-    parser.add_argument("--seeds", nargs=5, type=int, default=list(SEEDS))
     args = parser.parse_args()
     device = (torch.device(f"cuda:{args.gpu}")
               if args.gpu >= 0 and torch.cuda.is_available()
               else torch.device("cpu"))
-    rows = run_main(args.data, device, args.output, args.seeds)
+    rows = run_main(args.data, device, args.output)
     payload = {
         "metadata": {
-            "protocol": "5-fold stratified CV with five seeds; 20% test fold; validation is 15% of the remaining data",
-            "seeds": list(args.seeds),
+            "protocol": "repeated 5-fold stratified CV; 20% test fold; validation is 15% of the remaining data",
+            "repeats": N_REPEATS,
             "gpu": args.gpu,
             "data": args.data,
             "stratification": "yield-strength deciles",

@@ -15,16 +15,6 @@ from models.gad_net import GADNet, AdaBoostWeightManager, WeightedMSELoss
 from evaluate import compute_all_metrics
 
 
-def set_seed(seed):
-    """Set random seeds for reproducibility."""
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
 class EarlyStopping:
     """Early stopping with patience."""
     def __init__(self, patience=30, min_delta=1e-6, mode="min"):
@@ -59,7 +49,7 @@ class EarlyStopping:
 # Optimize on the training fold and select by validation loss.
 def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                   num_epochs=None, use_adaboost=True, verbose=True,
-                  weight_vis_callback=None, seed=42):
+                  weight_vis_callback=None):
     """
     Train GAD-Net with dynamic tail-aware adaptive sample weighting.
 
@@ -73,12 +63,9 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         use_adaboost: whether to use adaptive sample weighting
         verbose: print training progress
         weight_vis_callback: callback for weight visualization
-        seed: random seed
-
     Returns:
         model, history
     """
-    set_seed(seed)
     if num_epochs is None:
         num_epochs = config.NUM_EPOCHS
 
@@ -196,8 +183,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
 
 
         # Validation phase.
-        model.eval()
-        val_losses
         model.eval()
         val_losses = []
         val_preds = []
