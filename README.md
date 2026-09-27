@@ -1,357 +1,103 @@
-# 🧠 GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction
+# GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction
 
-<p align="center">
-<b>
-Knowledge-Guided Graph Learning · Adaptive Topology Refinement · Heterogeneous Graph Attention · Tail-aware Adaptive Optimization
-</b>
-</p>
+Official implementation of **GAD-Net**, a knowledge-guided heterogeneous graph attention network for predicting the yield strength of cold-rolled strip steel in continuous annealing production lines (CAPLs).
 
-<p align="center">
-<img src="https://img.shields.io/badge/GAD--Net-Yield%20Strength%20Prediction-blue">
-<img src="https://img.shields.io/badge/Knowledge--Guided-Graph%20Learning-green">
-<img src="https://img.shields.io/badge/Adaptive-Topology%20Refinement-purple">
-<img src="https://img.shields.io/badge/Heterogeneous-Graph%20Attention-orange">
-</p>
+![GAD-Net workflow](images/fig4_workflow.jpg)
 
+## Overview
 
-<p align="center">
-  <b>Official implementation of GAD-Net for steel yield-strength prediction in continuous annealing production lines.</b>
-</p>
+Yield strength is a key mechanical property of cold-rolled strip steel, but it is normally obtained by offline tensile testing. GAD-Net estimates yield strength from available CAPL production variables before the destructive test result is returned. The model represents operating, procedure, conditional, and composition variables as heterogeneous graph nodes, then combines mechanistic priors with adaptive graph learning and relation-specific attention.
 
+The public code release contains the model implementation and the repeated stratified cross-validation pipeline. The industrial CAPL dataset is enterprise-confidential and is not included.
 
-<p align="center">
-  Project Page | Paper
-</p>
+## Main contributions
 
+- A heterogeneous graph representation organizes 22 CAPL process variables by physical role.
+- Mechanistic priors constrain adaptive graph learning while allowing data-driven topology refinement.
+- Relation-specific heterogeneous attention models cross-domain process dependencies.
+- Dynamic sample weighting emphasizes difficult and sparsely represented boundary-region samples.
+- Fold-specific preprocessing and repeated validation reduce leakage and quantify variability.
 
----
+## Framework
 
-# 📌 Overview
+![GAD-Net framework](images/fig7_framework.jpg)
 
-This repository provides the official implementation of **GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction**.
-
-Yield strength is a critical quality indicator in continuous annealing production lines (CAPLs). Accurate prediction remains challenging due to limited industrial samples, heterogeneous process variables, strong variable coupling, and insufficient representation of underlying process mechanisms.
-
-Existing data-driven methods mainly rely on statistical correlations and often ignore physical process knowledge. Meanwhile, conventional graph-based approaches usually employ fixed graph structures, limiting their ability to capture complex and evolving relationships among manufacturing variables.
-
-To address these challenges, **GAD-Net** integrates mechanism-prior graph construction, adaptive topology refinement, heterogeneous graph attention learning, and tail-aware adaptive sample weighting into a unified framework.
-
-
-The GAD-Net framework consists of four main components:
-
-* **Mechanism-prior graph construction:** Incorporates CAPL process knowledge into graph initialization and provides physically meaningful structural constraints.
-
-* **Adaptive topology refinement:** Learns complementary data-driven variable relationships beyond predefined physical connections.
-
-* **Heterogeneous graph attention learning:** Captures complex interactions among different categories of process variables.
-
-* **Tail-aware adaptive weighting:** Improves prediction robustness in sparse and difficult target regions.
-
-
-The public release contains the complete GAD-Net implementation and cross-validation experimental pipeline. The industrial CAPL dataset is enterprise-confidential and therefore not included.
-
-<p align="center">
-<img src="images/fig4_workflow.jpg" width="100%">
-</p>
-
-<p align="center">
-<em>Overall workflow of GAD-Net for steel yield-strength prediction in continuous annealing production lines.</em>
-</p>
-
-
----
-
-# 🔥 Highlights
-
-* A knowledge-guided adaptive graph network is proposed for steel yield-strength prediction.
-
-* Physical process knowledge is embedded into graph construction to improve industrial interpretability.
-
-* Adaptive topology refinement discovers hidden variable interactions from production data.
-
-* Heterogeneous graph attention models complex dependencies among different process variable groups.
-
-* Tail-aware adaptive weighting improves prediction performance in challenging target regions.
-
-* Leakage-safe preprocessing ensures reliable industrial evaluation.
-
-* Complete cross-validation experiments are provided for reproducible research.
-
-
----
-
-# 🧩 Framework
-
-
-<p align="center">
-<img src="images/fig7_framework.jpg" width="100%">
-</p>
-
-
-The complete training workflow of GAD-Net is organized as follows:
-
-
+```text
 Authorized CAPL production data
-
         |
         v
-
-Physical admissibility filtering
-
+Physical admissibility checks
         |
         v
-
-Stratified cross-validation partition
-
+Repeated stratified five-fold partitioning
         |
         v
-
-Training-fold-only preprocessing
-
+Training-fold-only standardization and weighting setup
         |
         v
-
 Mechanism-prior graph construction
-
         |
         v
-
-Adaptive topology refinement
-
+Prior-constrained adaptive graph learning
         |
         v
-
-Heterogeneous graph attention learning
-
+Heterogeneous graph attention prediction
         |
         v
-
-Tail-aware adaptive optimization
-
+Validation-based early stopping and model selection
         |
         v
+Evaluation on the held-out test fold
+```
 
-Validation-based model selection
+The industrial application context is shown below.
 
-        |
-        v
+![CAPL application scenario](images/fig5_application.jpg)
 
-Final yield-strength prediction
+## Experimental protocol
 
+The default experiment uses five independent random seeds and five stratified folds. Stratification follows the yield-strength distribution. For each fold, input standardization and dynamic sample-weight parameters are fitted using the training portion only. The validation portion is used for early stopping and model selection; the held-out test fold is evaluated after training.
 
-<p align="center">
-<img src="images/fig5_application.jpg" width="100%">
-</p>
+The runner records fold-level predictions, metrics, and training logs, then summarizes mean performance, sample standard deviation, and approximate 95% confidence intervals. Reported metrics include RMSE, MAE, MAPE, R², and boundary-region (tail) MAE.
 
-<p align="center">
-<em>Industrial application scenario of GAD-Net in continuous annealing production lines.</em>
-</p>
+## Installation
 
-
----
-
-# ⚙️ Method Overview
-
-
-## 1. Knowledge-Guided Graph Construction
-
-GAD-Net first constructs a mechanism-prior graph based on domain knowledge from the continuous annealing process.
-
-The process variables are organized into four heterogeneous node groups:
-
-* Operating variables
-
-* Procedure variables
-
-* Conditional variables
-
-* Composition variables
-
-
-The initial graph topology provides physically meaningful structural constraints while enabling further graph learning.
-
-
----
-
-## 2. Adaptive Topology Refinement
-
-Although physical knowledge provides valuable prior information, industrial processes contain complex hidden dependencies.
-
-GAD-Net introduces adaptive topology refinement to update graph structures according to feature relationships, allowing the model to discover complementary data-driven interactions while maintaining physical consistency.
-
-
----
-
-## 3. Heterogeneous Graph Attention Learning
-
-A heterogeneous graph attention module is designed to capture interactions among different variable categories.
-
-Through multi-head attention aggregation, GAD-Net learns:
-
-* Cross-category variable dependencies.
-
-* High-order process interactions.
-
-* Condition-dependent feature representations.
-
-
----
-
-## 4. Tail-aware Adaptive Weighting
-
-Industrial yield-strength data often exhibit uneven target distributions.
-
-GAD-Net introduces tail-aware adaptive weighting to emphasize difficult samples and improve prediction robustness in sparse target regions.
-
-
----
-
-# 📊 Experimental Protocol
-
-The default experiment evaluates GAD-Net using stratified cross-validation.
-
-
-The experimental protocol follows strict leakage prevention principles:
-
-* Dataset partitioning is performed before model training.
-
-* Feature statistics and preprocessing parameters are fitted only using the corresponding training portion.
-
-* Sample-weight parameters are estimated only from training data.
-
-* Validation data are used for early stopping and model selection.
-
-* Test data are evaluated only after training completion.
-
-
-Multiple independent experiments with fixed random seeds are conducted to evaluate model stability and reliability.
-
-
-The runner records individual experimental results and summarizes the overall performance statistics, including average performance, variability, and confidence estimation.
-
-
----
-
-# ⚙️ Configuration
-
-
-Representative experimental settings:
-
-
-| Component | Setting |
-|------------|------------|
-| Task | Steel yield-strength prediction |
-| Data type | Industrial CAPL production records |
-| Validation strategy | Stratified cross-validation |
-| Graph type | Knowledge-guided heterogeneous graph |
-| Graph refinement | Adaptive topology learning |
-| Attention mechanism | Multi-head heterogeneous graph attention |
-| Optimization | Tail-aware adaptive training |
-| Evaluation | Regression metrics |
-
-
-Detailed architecture and optimization parameters are provided in the configuration files.
-
-
----
-
-# 🛠️ Installation
-
-
-Clone the repository:
-
-
-
-git clone https://github.com/your_username/GAD-Net.git
-
-cd GAD-Net
-
-
-
-Create and activate a virtual environment:
-
-
-
+```bash
 python -m venv .venv
-
 source .venv/bin/activate
-
-
-
-Install dependencies:
-
-
 python -m pip install --upgrade pip
-
 pip install -r requirements.txt
-
-
-
-Install a PyTorch version compatible with your CUDA environment if GPU acceleration is required.
-
-
----
-
-
-# 🚀 Running the Main Experiment
-
-
-Run the complete experiment:
-
-
-```bash
-python main.py \
-    --data data/CAPL.csv \
-    --gpu 0 \
-    --output results/main
 ```
 
+Install a PyTorch build compatible with your CUDA driver if GPU training is required.
 
-For CPU smoke testing:
+## Data
 
+The raw CAPL production data are enterprise-confidential and are not distributed. To run the code, place an authorized local copy at `data/CAPL.csv`, or pass another local path with `--data`.
+
+Do not commit the dataset, predictions, checkpoints, logs, or private industrial metadata to a public repository.
+
+## Running the experiment
+
+From the repository root:
 
 ```bash
-python main.py \
-    --data data/CAPL.csv \
-    --gpu -1
+python main.py --data data/CAPL.csv --gpu 0 --output results_5fold_cv/main
 ```
 
+Use `--gpu -1` for a CPU smoke test.
 
-The pipeline sequentially performs:
-
-
-1. Data loading and preprocessing.
-
-2. Cross-validation partitioning.
-
-3. Knowledge-guided graph construction.
-
-4. Adaptive graph learning.
-
-5. Model optimization.
-
-6. Validation-based model selection.
-
-7. Final evaluation.
-
-
----
-
-# 📁 Repository Structure
-
+## Repository structure
 
 ```text
 GAD-Net/
-
 ├── images/
 │   ├── fig4_workflow.jpg
 │   ├── fig5_application.jpg
 │   └── fig7_framework.jpg
-│
 ├── models/
 │   ├── gad_net.py
 │   └── __init__.py
-│
 ├── config.py
 ├── data_preprocessing.py
 ├── fold_preprocessing.py
@@ -363,162 +109,12 @@ GAD-Net/
 └── README.md
 ```
 
+## Citation
 
-The main components are organized as follows:
+If you use GAD-Net, please cite the accompanying manuscript:
 
+> Knowledge Guided Heterogeneous Graph Attention Network for Yield Strength Prediction of Cold Rolled Strip Steel in Continuous Annealing Production Lines.
 
-* `models/`
+## License
 
-  Implementation of GAD-Net architecture, including graph learning and attention modules.
-
-
-* `graph_construction.py`
-
-  Construction of mechanism-prior graph topology and adaptive graph initialization.
-
-
-* `data_preprocessing.py`
-
-  Dataset loading and preprocessing utilities.
-
-
-* `fold_preprocessing.py`
-
-  Leakage-safe fold-specific preprocessing.
-
-
-* `train.py`
-
-  Model optimization and training procedures.
-
-
-* `evaluate.py`
-
-  Prediction evaluation and metric calculation.
-
-
-* `main.py`
-
-  Complete experimental pipeline.
-
-
----
-
-# 📦 Outputs
-
-
-Experimental results are stored under:
-
-
-```text
-results/
-```
-
-
-Typical outputs:
-
-
-```text
-results/
-
-├── checkpoints/
-
-├── predictions/
-
-├── metrics/
-
-├── logs/
-
-└── summary.json
-```
-
-
-The output files contain:
-
-
-* Model checkpoints.
-
-* Prediction results.
-
-* Evaluation metrics.
-
-* Training logs.
-
-* Experiment summaries.
-
-
----
-
-# 📏 Evaluation Metrics
-
-
-GAD-Net is evaluated using four regression metrics:
-
-
-* **Root Mean Squared Error (RMSE)**
-
-* **Mean Absolute Error (MAE)**
-
-* **Mean Absolute Percentage Error (MAPE)**
-
-* **Coefficient of Determination (R²)**
-
-
-Lower RMSE, MAE, and MAPE values indicate smaller prediction errors, while higher R² indicates stronger agreement between predicted and measured yield strength.
-
-
----
-
-# 📰 News
-
-
-* GAD-Net framework completed.
-
-* Experimental validation completed.
-
-* Source code released.
-
-
----
-
-# 🙏 Acknowledgements
-
-
-This project builds upon advances in:
-
-* Graph neural networks.
-
-* Heterogeneous graph learning.
-
-* Knowledge-guided machine learning.
-
-* Industrial artificial intelligence.
-
-
-We thank the open-source community for providing valuable tools and resources.
-
-
----
-
-# 📖 Citation
-
-
-If you find GAD-Net useful in your research, please consider citing our paper:
-
-```text
-@article{gadnet2026,
-  title={GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction},
-  year={2026}
-}
-```
-
-
-Citation information will be updated after the paper is officially published.
-
-
----
-
-# 📬 Contact
-
-
-For questions regarding implementation, experimental configuration, or reproducibility, please open an issue in this repository.
+This code is released for research use. The enterprise dataset is not included.
