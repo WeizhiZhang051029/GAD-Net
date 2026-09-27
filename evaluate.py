@@ -49,13 +49,14 @@ def compute_hit_rate(y_true, y_pred, threshold=None):
     return np.mean(hits) * 100
 
 
+# Report overall metrics and metrics on the training-defined tail region.
 def compute_all_metrics(y_true, y_pred, tail_bounds=None):
     """
     Compute all evaluation metrics, INCLUDING TAIL PERFORMANCE.
     """
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
-    # 1. 基础指标
+
     metrics = {
         "MAE": compute_mae(y_true, y_pred),
         "MSE": compute_mse(y_true, y_pred),
@@ -66,31 +67,30 @@ def compute_all_metrics(y_true, y_pred, tail_bounds=None):
         "HR": compute_hit_rate(y_true, y_pred),
     }
 
-    # ================= 方案 B：新增尾部指标计算 (Start) =================
-    # 定义尾部：取数据分布的 前10% (过低) 和 后10% (过高) 作为难样本
+
     if tail_bounds is None:
         lower_q = np.percentile(y_true, 10)
         upper_q = np.percentile(y_true, 90)
     else:
         lower_q, upper_q = map(float, tail_bounds)
 
-    # 生成掩码：找出所有在尾部的样本下标
+
+    # Use bounds fitted on the training fold when they are supplied.
     tail_mask = (y_true <= lower_q) | (y_true >= upper_q)
 
-    # 如果存在尾部样本（防止除以0），计算尾部专属指标
+
     if np.sum(tail_mask) > 0:
         y_true_tail = y_true[tail_mask]
         y_pred_tail = y_pred[tail_mask]
 
-        # 计算尾部命中率 (Tail_HR) 和 尾部R2 (Tail_R2)
-        # 注意：直接调用已有的 compute_hit_rate
+
         metrics["Tail_HR"] = compute_hit_rate(y_true_tail, y_pred_tail)
         metrics["Tail_MAE"] = compute_mae(y_true_tail, y_pred_tail)
-        # metrics["Tail_R2"] = compute_r2(y_true_tail, y_pred_tail) # 尾部R2通常不稳定，可以不加
+
     else:
         metrics["Tail_HR"] = 0.0
         metrics["Tail_MAE"] = 0.0
-    # ================= 方案 B：新增尾部指标计算 (End) =================
+
 
     return metrics
 
@@ -98,20 +98,20 @@ def compute_all_metrics(y_true, y_pred, tail_bounds=None):
 def format_metrics(metrics, prefix=""):
     """Format metrics dict as a readable string."""
     parts = []
-    # 定义关键指标的显示顺序，把 Tail_HR 放在显眼位置
+
     keys_order = ["MAE", "RMSE", "R2", "HR", "Tail_HR", "Tail_MAE", "MAPE", "CORR"]
 
     for k in keys_order:
         if k in metrics:
             v = metrics[k]
-            if "HR" in k or "MAPE" in k:  # 对 HR, Tail_HR, MAPE 显示百分比
+            if "HR" in k or "MAPE" in k:
                 parts.append(f"{prefix}{k}: {v:.2f}%")
             elif k in ["R2", "CORR"]:
                 parts.append(f"{prefix}{k}: {v:.4f}")
             else:
                 parts.append(f"{prefix}{k}: {v:.4f}")
 
-    # 处理可能存在的其他指标（防止漏掉）
+
     for k, v in metrics.items():
         if k not in keys_order:
             parts.append(f"{prefix}{k}: {v:.4f}")
@@ -122,7 +122,7 @@ def format_metrics(metrics, prefix=""):
 def aggregate_run_metrics(all_metrics_list):
     """
     Aggregate metrics from multiple independent runs.
-    
+
     Args:
         all_metrics_list: list of metric dicts from each run
     Returns:

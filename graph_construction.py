@@ -9,13 +9,14 @@ import torch.nn.functional as F
 import config
 
 
+# Encode process relations supplied by domain knowledge.
 def build_mechanism_knowledge_graph(feature_names, node_types):
     """Build mechanism knowledge graph based on CAPL process domain knowledge."""
     N = len(feature_names)
     adj = np.zeros((N, N), dtype=np.float32)
     n2i = {name: i for i, name in enumerate(feature_names)}
 
-    # Temperature chain: sequential thermal process
+
     temp_chain = [
         "JPF_Preheat_Temp", "Heating_Furnace_Temp", "Soaking_Furnace_Temp",
         "Slow_Cooling_Temp", "Fast_Cooling1_Temp", "Overaging_Furnace_Temp",
@@ -25,25 +26,25 @@ def build_mechanism_knowledge_graph(feature_names, node_types):
         if temp_chain[k] in n2i and temp_chain[k+1] in n2i:
             adj[n2i[temp_chain[k]], n2i[temp_chain[k+1]]] = 1.0
 
-    # Furnace speed affects all temperature parameters
+
     if "Furnace_Speed" in n2i:
         for t in temp_chain:
             if t in n2i:
                 adj[n2i["Furnace_Speed"], n2i[t]] = 1.0
 
-    # Chemical -> Mechanical
+
     for cp in ["C_Content", "Mn_Content", "S_Content", "P_Content"]:
         for mp in ["Elongation", "Rolling_Force", "Bending_Force"]:
             if cp in n2i and mp in n2i:
                 adj[n2i[cp], n2i[mp]] = 1.0
 
-    # Hot rolling -> Cold rolling
+
     for hp in ["Heating_Temp", "Finish_Rolling_Temp", "Coiling_Temp"]:
         for cp in ["Cold_Rolling_Reduction", "Actual_Thickness"]:
             if hp in n2i and cp in n2i:
                 adj[n2i[hp], n2i[cp]] = 1.0
 
-    # Cooling temps -> Mechanical
+
     cools = ["Slow_Cooling_Temp", "Fast_Cooling1_Temp",
              "Overaging_Furnace_Temp", "Fast_Cooling2_Temp", "Quenching_Temp"]
     for ct in cools:
@@ -51,7 +52,7 @@ def build_mechanism_knowledge_graph(feature_names, node_types):
             if ct in n2i and mp in n2i:
                 adj[n2i[ct], n2i[mp]] = 1.0
 
-    # Geometry -> Rolling force
+
     if "Rolling_Force" in n2i:
         for p in ["Actual_Thickness", "Actual_Width", "Cold_Rolling_Reduction"]:
             if p in n2i:
@@ -92,6 +93,7 @@ def build_heterogeneous_adjacency_tensor(adj_combined, node_types):
     return adj_tensor
 
 
+# Merge the fixed prior with train-only data-driven relations.
 def build_full_graph(data_dict):
     feature_names = data_dict["feature_names"]
     node_types = data_dict["node_types"]
@@ -112,6 +114,7 @@ def build_full_graph(data_dict):
     }
 
 
+# Learn a globally shared soft topology gated by the mechanism prior.
 class AdaptiveGraphLearningLayer(nn.Module):
     """Adaptive GL Layer with Knowledge-Gated Unit (Algorithm 1)."""
     def __init__(self, num_nodes, node_embed_dim, num_edge_types,
@@ -125,19 +128,19 @@ class AdaptiveGraphLearningLayer(nn.Module):
         self.use_node_embed = use_node_embed
         self.node_embed_dim = node_embed_dim
 
-        # 为了兼容奇数维度，避免 //2 + //2 少一维
+
         class_dim = node_embed_dim // 2
         indiv_dim = node_embed_dim - class_dim
         Fe = node_embed_dim
 
         if self.use_node_embed:
-            # 正常模式：使用节点类型 embedding + 节点个体 embedding
+
             self.node_class_embed = nn.Embedding(config.NUM_NODE_TYPES, class_dim)
             self.node_indiv_embed = nn.Embedding(num_nodes, indiv_dim)
             self.shared_node_token = None
         else:
-            # 消融模式：不使用任何节点专属 embedding
-            # 所有节点共享同一个可学习 token，保证图学习分支仍可工作
+
+
             self.node_class_embed = None
             self.node_indiv_embed = None
             self.shared_node_token = nn.Parameter(torch.empty(1, node_embed_dim))
@@ -149,14 +152,14 @@ class AdaptiveGraphLearningLayer(nn.Module):
 
     def get_node_embeddings(self, node_types):
         if self.use_node_embed:
-            class_emb = self.node_class_embed(node_types)  # (N, class_dim)
+            class_emb = self.node_class_embed(node_types)
             indiv_emb = self.node_indiv_embed(
                 torch.arange(self.num_nodes, device=node_types.device)
-            )  # (N, indiv_dim)
-            E = torch.cat([class_emb, indiv_emb], dim=-1)  # (N, node_embed_dim)
+            )
+            E = torch.cat([class_emb, indiv_emb], dim=-1)
         else:
-            # 所有节点共享同一个 token，不含节点身份信息
-            E = self.shared_node_token.expand(self.num_nodes, -1)  # (N, node_embed_dim)
+
+            E = self.shared_node_token.expand(self.num_nodes, -1)
         return E
 
     def modified_sigmoid(self, x):
@@ -166,7 +169,7 @@ class AdaptiveGraphLearningLayer(nn.Module):
         E = self.get_node_embeddings(node_types)
         Q_g, K_g, G_g = self.W_Q(E), self.W_K(E), self.W_G(E)
 
-        # Non-negative affinity to keep learned graph semantically consistent
+
         scale = np.sqrt(self.node_embed_dim)
         a_G = self.modified_sigmoid((Q_g @ K_g.T) / scale)
 

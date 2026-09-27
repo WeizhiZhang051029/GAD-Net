@@ -56,6 +56,7 @@ class EarlyStopping:
         return self.should_stop
 
 
+# Optimize on the training fold and select by validation loss.
 def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                   num_epochs=None, use_adaboost=True, verbose=True,
                   weight_vis_callback=None, seed=42):
@@ -84,12 +85,12 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
     device = config.DEVICE
     model = model.to(device)
 
-    # Prepare graph tensors
+
     node_types = graph_data["node_types"].to(device)
     adj_mechanism = graph_data["adj_mechanism"].to(device)
     adj_het = graph_data["adj_het_tensor"].to(device)
 
-    # Optimizer and scheduler
+
     optimizer = optim.Adam(
         model.parameters(),
         lr=config.LEARNING_RATE,
@@ -101,14 +102,14 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         gamma=config.LR_DECAY_GAMMA
     )
 
-    # Loss function
+
     criterion = WeightedMSELoss(
         mse_weight=config.LOSS_MSE_WEIGHT,
         l1_weight=config.LOSS_L1_WEIGHT,
         graph_weight=config.LOSS_GRAPH_WEIGHT,
     )
 
-    # Dynamic tail-aware weight manager
+
     n_train = len(train_loader.dataset)
     adaboost_mgr = None
     if use_adaboost:
@@ -129,20 +130,20 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             mean_anchor=config.ADABOOST_MEAN_ANCHOR,
         )
 
-    # Early stopping
+
     early_stop = EarlyStopping(
         patience=config.EARLY_STOP_PATIENCE,
         mode="min"
     )
 
-    # History
+
     history = defaultdict(list)
     best_model_state = None
 
     for epoch in range(1, num_epochs + 1):
-        # =========================
-        # Training phase
-        # =========================
+
+
+        # Training phase.
         model.train()
         train_losses = []
         all_train_preds = []
@@ -154,7 +155,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             batch_y = batch_y.to(device)
             batch_idx_np = batch_idx.detach().cpu().numpy()
 
-            # Get current dynamic weights
+
             if adaboost_mgr is not None:
                 sw = adaboost_mgr.get_weights_tensor(batch_idx_np).to(device)
             else:
@@ -176,7 +177,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             all_train_targets.append(batch_y.detach().cpu().numpy())
             all_train_indices.append(batch_idx_np)
 
-        # 每个 epoch 结束后，再用本 epoch 全体训练误差更新一次尾部权重
+
         if adaboost_mgr is not None and len(all_train_preds) > 0:
             preds_arr = np.concatenate(all_train_preds).ravel()
             targets_arr = np.concatenate(all_train_targets).ravel()
@@ -189,13 +190,14 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
 
         scheduler.step()
 
-        # Weight visualization callback
+
         if weight_vis_callback and epoch % config.WEIGHT_VIS_INTERVAL == 0:
             weight_vis_callback(epoch, adaboost_mgr)
 
-        # =========================
-        # Validation phase
-        # =========================
+
+        # Validation phase.
+        model.eval()
+        val_losses
         model.eval()
         val_losses = []
         val_preds = []
@@ -220,7 +222,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         history["val_loss"].append(avg_val_loss)
         history["lr"].append(optimizer.param_groups[0]["lr"])
 
-        # ----- Validation metrics on ORIGINAL scale -----
+
         val_preds_arr = np.concatenate(val_preds).reshape(-1, 1)
         val_targets_arr = np.concatenate(val_targets).reshape(-1, 1)
 
@@ -251,8 +253,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         else:
             val_tail_mae = float(np.mean(np.abs(val_preds_raw - val_targets_raw)))
 
-        # The manuscript specifies validation-based early stopping without
-        # an additional metric-threshold selection rule.
+
         selection_score = avg_val_loss
 
         history["val_rmse"].append(val_rmse)
@@ -261,7 +262,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         history["val_tail_mae"].append(val_tail_mae)
         history["selection_score"].append(float(selection_score))
 
-        # Record RMSE every epoch on original scale
+
         if adaboost_mgr is not None:
             if "boosting_val_rmse" not in history:
                 history["boosting_val_rmse"] = []
@@ -273,11 +274,11 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                 history["tail_max_multiplier"].append(tail_stats["tail_max"])
                 history["tail_mean_multiplier"].append(tail_stats["tail_mean"])
 
-        # Save the best model by validation loss
+
         if early_stop.best_score is None or selection_score < early_stop.best_score:
             best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
 
-        # Early stopping by validation loss
+
         if early_stop.step(selection_score, epoch):
             if verbose:
                 print(
@@ -295,22 +296,22 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                 f"R2: {val_r2:.4f} | "
                 f"Tail_MAE: {val_tail_mae:.4f} | "
                 f"ValLoss: {selection_score:.6f} | "
-                
+
                 f"LR: {optimizer.param_groups[0]['lr']:.6f}"
             )
 
 
-    # Restore best model
+    # Restore the checkpoint with the best validation loss.
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         model = model.to(device)
 
-    # Store weight history and boosting stats
+
     if adaboost_mgr is not None:
         history["adaboost_weight_history"] = adaboost_mgr.get_weight_history()
         history["adaboost_boosting_stats"] = adaboost_mgr.get_boosting_stats()
 
-    # Get learned graph and attention weights from REAL data
+
     model.eval()
     with torch.no_grad():
         probe_x = torch.zeros(1, model.num_features).to(device)
@@ -372,7 +373,7 @@ def evaluate_model(model, test_loader, scaler_y, graph_data=None,
     preds = np.concatenate(all_preds).ravel()
     targets = np.concatenate(all_targets).ravel()
 
-    # Inverse transform to original scale
+
     preds_orig = scaler_y.inverse_transform(preds.reshape(-1, 1)).ravel()
     targets_orig = scaler_y.inverse_transform(targets.reshape(-1, 1)).ravel()
 

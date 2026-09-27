@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """Run the manuscript's main GAD-Net protocol: 5 folds x 5 fixed seeds."""
 import argparse
 import json
@@ -38,6 +38,7 @@ def make_model(num_features):
     )
 
 
+# Stratify by yield-strength deciles and evaluate each test fold once.
 def split_plan(y, seed):
     labels = pd.qcut(y, q=10, labels=False, duplicates="drop").astype(int)
     indices = np.arange(len(y))
@@ -72,6 +73,7 @@ def aggregate(rows):
         }
     return result
 
+# Run the fixed five-seed, five-fold protocol.
 def run_main(data_path, device, output, seeds):
     os.makedirs(output, exist_ok=True)
     target = load_raw_data(data_path)[config.TARGET_COL].to_numpy(dtype=float)

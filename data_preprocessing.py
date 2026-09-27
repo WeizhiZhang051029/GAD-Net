@@ -14,6 +14,7 @@ warnings.filterwarnings("ignore")
 import config
 
 
+# Apply fixed physical bounds before creating data splits.
 def apply_physical_constraints(df):
     """Remove records outside fixed physical admissibility bounds."""
     mask = pd.Series(True, index=df.index)
@@ -49,7 +50,7 @@ def load_raw_data(path=None):
     if path is None:
         path = config.DATA_PATH
     df = pd.read_csv(path, encoding="gb18030") if str(path).lower().endswith(".csv") else pd.read_excel(path)
-    # Rename Chinese columns to English
+
     df = df.rename(columns=config.COLUMN_NAME_MAP)
     if df.isna().any().any():
         missing = df.columns[df.isna().any()].tolist()
@@ -60,7 +61,6 @@ def load_raw_data(path=None):
     print(f"[Data] Loaded {df.shape[0]} samples, {df.shape[1]} columns")
     print(f"[Data] Columns: {list(df.columns)}")
     return df
-
 
 
 def compute_sample_imbalance_weights(y, num_bins=10, strategy="inverse_freq", bins=None):
@@ -108,8 +108,7 @@ def preprocess_data(data_path=None, return_raw=False, split_seed=None):
     on the training partition and then applied to validation/test partitions.
     """
     df = load_raw_data(data_path)
-    # Do not remove observations using statistics computed from the full data.
-    # The revised evaluation keeps all records and fits preprocessing on train only.
+
 
     feature_names = [c for c in df.columns if c != config.TARGET_COL]
     X_raw = df[feature_names].values.astype(np.float64)
@@ -118,7 +117,7 @@ def preprocess_data(data_path=None, return_raw=False, split_seed=None):
     if split_seed is None:
         split_seed = config.SEED
 
-    # Stratification labels are formed only to create the requested split.
+
     split_labels = pd.qcut(y_raw, q=10, labels=False, duplicates="drop").astype(int)
     indices = np.arange(len(y_raw))
     idx_tv, idx_test = train_test_split(
@@ -132,6 +131,7 @@ def preprocess_data(data_path=None, return_raw=False, split_seed=None):
     X_train_raw, X_val_raw, X_test_raw = X_raw[idx_train], X_raw[idx_val], X_raw[idx_test]
     y_train_raw, y_val_raw, y_test_raw = y_raw[idx_train], y_raw[idx_val], y_raw[idx_test]
 
+    # Fit transforms on the training partition and reuse them for validation/test.
     scaler_X, scaler_y = StandardScaler(), StandardScaler()
     X_train = scaler_X.fit_transform(X_train_raw)
     X_val = scaler_X.transform(X_val_raw)
@@ -140,7 +140,7 @@ def preprocess_data(data_path=None, return_raw=False, split_seed=None):
     y_val = scaler_y.transform(y_val_raw.reshape(-1, 1)).ravel()
     y_test = scaler_y.transform(y_test_raw.reshape(-1, 1)).ravel()
 
-    # Fit bin edges and inverse-frequency weights on training labels only.
+
     sw_train, bi_train, bin_counts, weight_bins = compute_sample_imbalance_weights(
         y_train_raw, num_bins=10, strategy="inverse_freq")
     _, bi_val, _, _ = compute_sample_imbalance_weights(
@@ -150,7 +150,8 @@ def preprocess_data(data_path=None, return_raw=False, split_seed=None):
     sw_val = np.ones(len(y_val), dtype=np.float64)
     sw_test = np.ones(len(y_test), dtype=np.float64)
 
-    # Correlation/MI graph statistics are also estimated from training data only.
+
+    # Estimate graph statistics from the training partition only.
     corr_matrix, mi_scores, feature_corr_df = compute_feature_correlations(
         X_train_raw, y_train_raw, feature_names)
 
