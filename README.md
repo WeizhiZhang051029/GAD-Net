@@ -505,11 +505,12 @@ We thank the open-source community for providing valuable tools and resources.
 
 If you find GAD-Net useful in your research, please consider citing our paper:
 
+```text
 @article{gadnet2026,
   title={GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction},
   year={2026}
 }
-
+```
 
 
 Citation information will be updated after the paper is officially published.
