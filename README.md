@@ -248,7 +248,3 @@ If you use GAD-Net in your research, please cite the accompanying manuscript:
 ## 📬 Contact
 
 For questions about the implementation, experimental configuration, or reproducibility, please open an issue in the repository.
-
-## 📄 License
-
-This code is released for research use. The enterprise dataset is not included.
