@@ -1,0 +1,18 @@
+# Confidential data and local experiment outputs
+data/
+results*/
+saved_models/
+figures/
+*.csv
+*.xlsx
+*.xls
+*.pt
+*.pth
+*.ckpt
+*.log
+
+# Python and editor artifacts
+__pycache__/
+*.py[cod]
+.venv/
+.env
