@@ -156,14 +156,6 @@ python main.py \
     --output results_5fold_cv/main
 ```
 
-Use `--gpu -1` for a CPU smoke test:
-
-```bash
-python main.py \
-    --data data/CAPL.csv \
-    --gpu -1 \
-    --output results_cpu/main
-```
 
 The pipeline sequentially performs data loading, fold-specific preprocessing, graph construction, adaptive graph learning, model training, validation-based model selection, and held-out evaluation.
 

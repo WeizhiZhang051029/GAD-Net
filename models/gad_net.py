@@ -396,10 +396,6 @@ class AdaBoostWeightManager:
         self.ema_errors = np.zeros(self.num_samples, dtype=np.float64)
 
 
-        self.multiplier_history = [self.multipliers.copy()]
-        self.weight_history = [self.get_combined_weights().copy()]
-        self.alpha_history = []
-        self.error_history = []
         self.current_round = 0
 
         print(f"  [TailAware EMA] {n_tail} tail + {n_body} body samples")
@@ -452,8 +448,6 @@ class AdaBoostWeightManager:
         self.multipliers[self.is_tail] = new_tail
         self.multipliers[~self.is_tail] = 1.0
 
-        self.multiplier_history.append(self.multipliers.copy())
-        self.weight_history.append(self.get_combined_weights().copy())
         self.current_round += 1
 
         tail_m = self.multipliers[self.is_tail]
@@ -476,21 +470,6 @@ class AdaBoostWeightManager:
         if indices is not None:
             return torch.FloatTensor(cw[indices])
         return torch.FloatTensor(cw)
-
-    def get_weight_history(self):
-        """Return effective weights w=b*m, before mini-batch normalization."""
-        return np.array(self.weight_history)
-
-    def get_multiplier_history(self):
-        """Return dynamic multipliers separately from effective weights."""
-        return np.array(self.multiplier_history)
-
-    def get_boosting_stats(self):
-        """Return alpha and error histories for visualization."""
-        return {
-            "alphas": np.array(self.alpha_history),
-            "errors": np.array(self.error_history),
-        }
 
     def get_tail_stats(self):
         """Convenient monitoring stats."""

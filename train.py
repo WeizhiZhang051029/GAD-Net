@@ -294,38 +294,9 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         model = model.to(device)
 
 
-    if adaboost_mgr is not None:
-        history["adaboost_weight_history"] = adaboost_mgr.get_weight_history()
-        history["adaboost_boosting_stats"] = adaboost_mgr.get_boosting_stats()
-
-
-    model.eval()
-    with torch.no_grad():
-        probe_x = torch.zeros(1, model.num_features).to(device)
-        _, final_adj, _ = model(probe_x, node_types, adj_mechanism, adj_het)
-        history["learned_adj"] = final_adj.cpu().numpy()
-
-        attn_accum = None
-        n_batches = 0
-        for batch_X, batch_y, batch_sw, batch_idx in train_loader:
-            batch_X = batch_X.to(device)
-            _, _, batch_attn = model(batch_X, node_types, adj_mechanism, adj_het)
-
-            if batch_attn:
-                if attn_accum is None:
-                    attn_accum = [
-                        a.detach().cpu().sum(dim=0).numpy()
-                        for a in batch_attn
-                    ]
-                else:
-                    for li, a in enumerate(batch_attn):
-                        attn_accum[li] += a.detach().cpu().sum(dim=0).numpy()
-                n_batches += batch_X.size(0)
-
-        if attn_accum is not None and n_batches > 0:
-            history["final_attn_weights"] = [acc / n_batches for acc in attn_accum]
-
     return model, history
+
+
 
 
 def evaluate_model(model, test_loader, scaler_y, graph_data=None,

@@ -3,7 +3,6 @@ Evaluation Module
 Computes all metrics: MAE, MSE, RMSE, MAPE, R2, CORR, HR
 """
 import numpy as np
-from scipy import stats
 import config
 
 
@@ -146,42 +145,3 @@ def aggregate_run_metrics(all_metrics_list):
             "values": vals.tolist(),
         }
     return agg
-
-
-def paired_wilcoxon_holm(reference_rows, comparison_rows,
-                         metric_names=("RMSE", "MAPE", "R2", "Tail_MAE")):
-    """Run paired two-sided Wilcoxon tests and Holm correction."""
-    def key(row):
-        return row["run_id"]
-
-    ref = {key(row): row for row in reference_rows}
-    cmp = {key(row): row for row in comparison_rows}
-    keys = sorted(set(ref).intersection(cmp))
-    raw = []
-    for metric in metric_names:
-        x = np.asarray([ref[k]["metrics"][metric] for k in keys], dtype=float)
-        y = np.asarray([cmp[k]["metrics"][metric] for k in keys], dtype=float)
-        if len(x) < 2 or np.allclose(x, y):
-            stat, pvalue = 0.0, 1.0
-        else:
-            try:
-                result = stats.wilcoxon(x, y, alternative="two-sided",
-                                        zero_method="wilcox", method="auto")
-                stat, pvalue = float(result.statistic), float(result.pvalue)
-            except ValueError:
-                stat, pvalue = 0.0, 1.0
-        raw.append({"metric": metric, "n_pairs": len(keys),
-                    "statistic": stat, "p_raw": pvalue})
-    order = sorted(range(len(raw)), key=lambda i: raw[i]["p_raw"])
-    m = len(raw)
-    adjusted = [1.0] * m
-    running = 0.0
-    for rank, i in enumerate(order):
-        value = min(1.0, (m - rank) * raw[i]["p_raw"])
-        running = max(running, value)
-        adjusted[i] = running
-    for i, row in enumerate(raw):
-        row["p_holm"] = float(adjusted[i])
-        row["significant"] = bool(adjusted[i] < 0.05)
-    return {"method": "two-sided paired Wilcoxon signed-rank; Holm correction",
-            "pair_key": "run_id", "comparisons": raw}
