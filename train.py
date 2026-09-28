@@ -13,6 +13,7 @@ from collections import defaultdict
 import config
 from models.gad_net import GADNet, AdaBoostWeightManager, WeightedMSELoss
 from evaluate import compute_all_metrics
+from graph_construction import build_heterogeneous_adjacency_tensor
 
 
 class EarlyStopping:
@@ -76,6 +77,13 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
     node_types = graph_data["node_types"].to(device)
     adj_mechanism = graph_data["adj_mechanism"].to(device)
     adj_het = graph_data["adj_het_tensor"].to(device)
+    # Relation-aligned mechanistic prior used by Eq. (11).
+    if model.use_hetero:
+        prior_adj = torch.as_tensor(build_heterogeneous_adjacency_tensor(
+            graph_data["adj_mechanism"].cpu().numpy(),
+            graph_data["node_types"].cpu().numpy()), device=device)
+    else:
+        prior_adj = adj_mechanism.unsqueeze(0)
 
 
     optimizer = optim.Adam(
@@ -114,7 +122,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             min_tail_multiplier=config.ADABOOST_MIN_TAIL_MULTIPLIER,
             max_tail_multiplier=config.ADABOOST_MAX_TAIL_MULTIPLIER,
             update_momentum=config.ADABOOST_UPDATE_MOMENTUM,
-            mean_anchor=config.ADABOOST_MEAN_ANCHOR,
         )
 
 
@@ -146,7 +153,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             if adaboost_mgr is not None:
                 sw = adaboost_mgr.get_weights_tensor(batch_idx_np).to(device)
             else:
-                sw = batch_sw.to(device)
+                sw = torch.ones_like(batch_sw, device=device)
 
             optimizer.zero_grad()
 
@@ -154,7 +161,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                 batch_X, node_types, adj_mechanism, adj_het
             )
 
-            loss, mse_loss = criterion(pred, batch_y, sw, model, learned_adj)
+            loss, mse_loss = criterion(pred, batch_y, sw, model, learned_adj, prior_adj)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
@@ -364,3 +371,4 @@ def evaluate_model(model, test_loader, scaler_y, graph_data=None,
 
     metrics = compute_all_metrics(targets_orig, preds_orig, tail_bounds=tail_bounds)
     return preds_orig, targets_orig, metrics
+

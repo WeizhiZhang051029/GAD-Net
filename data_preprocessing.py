@@ -61,21 +61,18 @@ def load_raw_data(path=None):
     return df
 
 
-def compute_sample_imbalance_weights(y, num_bins=10, strategy="inverse_freq", bins=None):
-    """Compute sample weights using bin edges fitted on the training labels."""
-    if bins is None:
-        bins = np.linspace(y.min() - 1e-6, y.max() + 1e-6, num_bins + 1)
-    bin_indices = np.clip(np.digitize(y, bins) - 1, 0, num_bins - 1)
-    bin_counts = np.maximum(np.bincount(bin_indices, minlength=num_bins).astype(float), 1)
-    if strategy == "inverse_freq":
-        bin_weights = 1.0 / bin_counts
-    elif strategy == "sqrt_inverse_freq":
-        bin_weights = 1.0 / np.sqrt(bin_counts)
-    else:
-        bin_weights = np.ones(num_bins)
-    sample_weights = bin_weights[bin_indices]
-    sample_weights = sample_weights / sample_weights.sum() * len(y)
-    return sample_weights, bin_indices, bin_counts, bins
+def compute_boundary_weights(y, percentile=None, boundary_weight=None):
+    """Algorithm 2: boundary-only base weights, fitted on training labels."""
+    percentile = config.ADABOOST_TAIL_PERCENTILE if percentile is None else percentile
+    boundary_weight = config.ADABOOST_TAIL_BOOST if boundary_weight is None else boundary_weight
+    y = np.asarray(y, dtype=float).ravel()
+    if not y.size or not np.isfinite(y).all():
+        raise ValueError("Training labels must be nonempty and finite")
+    if not 0 < percentile < 50 or boundary_weight <= 0:
+        raise ValueError("Invalid boundary percentile or base weight")
+    lo, hi = np.percentile(y, [percentile, 100 - percentile])
+    boundary = (y <= lo) | (y >= hi)
+    return np.where(boundary, boundary_weight, 1.0), boundary, (float(lo), float(hi))
 
 
 def compute_feature_correlations(X, y, feature_names):

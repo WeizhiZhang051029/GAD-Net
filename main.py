@@ -1,8 +1,9 @@
 
-"""Run the manuscript's main GAD-Net protocol with repeated stratified folds."""
+"""Run the manuscript protocol: stratified five-fold CV repeated with five seeds."""
 import argparse
 import json
 import os
+import random
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,18 @@ from models.gad_net import GADNet
 from train import evaluate_model, train_gad_net
 from evaluate import compute_all_metrics
 
-N_REPEATS = 5
+SEEDS = (48, 60, 72, 66, 67)
+
+
+def set_run_seed(seed):
+    """Set all available RNGs for one matched fold-seed evaluation."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def make_model(num_features):
@@ -39,16 +51,17 @@ def make_model(num_features):
 
 
 # Stratify by yield-strength deciles and evaluate each test fold once.
-def split_plan(y):
+def split_plan(y, seed):
     labels = pd.qcut(y, q=10, labels=False, duplicates="drop").astype(int)
     indices = np.arange(len(y))
-    splitter = StratifiedKFold(n_splits=5, shuffle=True)
+    splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
     for fold, (train_val_pos, test_pos) in enumerate(splitter.split(indices, labels), 1):
         train_val = indices[train_val_pos]
         test = indices[test_pos]
         train, val = train_test_split(
             train_val,
             test_size=15 / 85,
+            random_state=seed + fold,
             stratify=labels[train_val],
         )
         yield fold, train, val, test
@@ -77,9 +90,10 @@ def run_main(data_path, device, output):
     os.makedirs(output, exist_ok=True)
     target = load_raw_data(data_path)[config.TARGET_COL].to_numpy(dtype=float)
     rows = []
-    for repeat in range(1, N_REPEATS + 1):
-        for fold, train_idx, val_idx, test_idx in split_plan(target):
-            run_id = f"repeat{repeat}_fold{fold}"
+    for seed in SEEDS:
+        for fold, train_idx, val_idx, test_idx in split_plan(target, seed):
+            run_id = f"seed{seed}_fold{fold}"
+            set_run_seed(seed * 100 + fold)
             data = prepare_index_split(data_path, train_idx, val_idx, test_idx)
             graph = build_full_graph(data)
             train_loader, val_loader, test_loader = create_dataloaders(data)
@@ -98,7 +112,7 @@ def run_main(data_path, device, output):
             metrics = compute_all_metrics(observed, predicted,
                                           tail_bounds=data["tail_bounds"])
             row = {
-                "repeat": int(repeat), "fold": int(fold), "run_id": run_id,
+                "seed": int(seed), "fold": int(fold), "run_id": run_id,
                 "train_n": int(len(train_idx)), "val_n": int(len(val_idx)),
                 "test_n": int(len(test_idx)),
                 "metrics": {key: float(value) for key, value in metrics.items()},
@@ -124,8 +138,8 @@ def main():
     rows = run_main(args.data, device, args.output)
     payload = {
         "metadata": {
-            "protocol": "repeated 5-fold stratified CV; 20% test fold; validation is 15% of the remaining data",
-            "repeats": N_REPEATS,
+            "protocol": "stratified five-fold CV repeated with five independent random seeds; 20% test fold; validation is 15% of the remaining data",
+            "seeds": list(SEEDS),
             "gpu": args.gpu,
             "data": args.data,
             "stratification": "yield-strength deciles",

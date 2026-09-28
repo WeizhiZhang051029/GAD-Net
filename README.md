@@ -1,4 +1,4 @@
-# 🧠 GAD-Net: Knowledge-Guided Adaptive Graph Network for Steel Yield-Strength Prediction
+# 🧠 GAD-Net: Knowledge-Guided Heterogeneous Graph Attention Network for Steel Yield-Strength Prediction
 
 <p align="center">
   <b>Mechanism-Prior Graph Learning · Adaptive Topology Refinement · Heterogeneous Graph Attention · Dynamic Sample Weighting</b>
@@ -95,7 +95,7 @@ The industrial application context is shown below.
 
 The default experiment uses **1000 industrial CAPL production records**, **22 process variables**, five independent random seeds, and five stratified folds. Stratification follows the yield strength distribution.
 
-For each fold, input standardization and dynamic sample-weight parameters are fitted using the training portion only. The validation portion is used for early stopping and model selection; the held-out test fold is evaluated after training.
+For each fold, input standardization and dynamic sample-weight parameters are fitted using the training portion only. The validation portion is used for early stopping and model selection and the held-out test fold is evaluated after training.
 
 The runner records fold-level predictions, metrics, and training logs, then summarizes mean performance, sample standard deviation. Reported metrics include RMSE, MAE, MAPE, R², and boundary-region (BR)_MAE. Paired significance tests are also conducted for model comparisons using matched evaluation folds.
 
@@ -252,6 +252,3 @@ For questions about the implementation, experimental configuration, or reproduci
 ## 📄 License
 
 This code is released for research use. The enterprise dataset is not included.
-
-
-

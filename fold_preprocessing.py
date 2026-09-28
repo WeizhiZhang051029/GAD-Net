@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from data_preprocessing import (
-    load_raw_data, compute_sample_imbalance_weights,
+    load_raw_data, compute_boundary_weights,
     compute_feature_correlations,
 )
 import config
@@ -28,9 +28,7 @@ def prepare_index_split(data_path, train_idx, val_idx, test_idx, return_raw=Fals
     yv = scaler_y.transform(yv_raw.reshape(-1, 1)).ravel()
     yte = scaler_y.transform(yte_raw.reshape(-1, 1)).ravel()
 
-    sw_train, _, bin_counts, weight_bins = compute_sample_imbalance_weights(ytr_raw, num_bins=10, strategy="inverse_freq")
-    _, _, _, _ = compute_sample_imbalance_weights(yv_raw, num_bins=10, strategy="inverse_freq", bins=weight_bins)
-    _, _, _, _ = compute_sample_imbalance_weights(yte_raw, num_bins=10, strategy="inverse_freq", bins=weight_bins)
+    sw_train, boundary_mask, boundary_bounds = compute_boundary_weights(ytr_raw)
     corr, mi, corr_df = compute_feature_correlations(Xtr_raw, ytr_raw, feature_names)
     node_types = np.array([config.NODE_TYPE_MAP[n] for n in feature_names], dtype=np.int64)
     out = {
@@ -38,11 +36,10 @@ def prepare_index_split(data_path, train_idx, val_idx, test_idx, return_raw=Fals
         "X_train": Xtr, "y_train": ytr, "X_val": Xv, "y_val": yv, "X_test": Xte, "y_test": yte,
         "sw_train": sw_train, "sw_val": np.ones(len(yv)), "sw_test": np.ones(len(yte)),
         "scaler_X": scaler_X, "scaler_y": scaler_y, "corr_matrix": corr, "mi_scores": mi,
-        "feature_corr_df": corr_df, "bin_counts": bin_counts, "weight_bins": weight_bins,
+        "feature_corr_df": corr_df, "boundary_mask": boundary_mask,
         "y_raw_train": ytr_raw, "y_raw_val": yv_raw, "y_raw_test": yte_raw,
         "train_indices": train_idx, "val_indices": val_idx, "test_indices": test_idx,
-        "tail_bounds": (float(np.percentile(ytr_raw, config.ADABOOST_TAIL_PERCENTILE)),
-                        float(np.percentile(ytr_raw, 100 - config.ADABOOST_TAIL_PERCENTILE))),
+        "tail_bounds": boundary_bounds,
     }
     if return_raw:
         out["X_raw"], out["y_raw"] = X_raw, y_raw
