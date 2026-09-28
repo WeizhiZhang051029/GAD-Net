@@ -331,33 +331,24 @@ class GADNet(nn.Module):
 
         return pred, learned_adj, attn_weights_list
 
-    def get_graph_regularization(self, learned_adj):
-        """
-        Differentiable sparsity regularization for learned heterogeneous adjacency.
-        Normalize by the actual number of entries to avoid over-penalizing multi-relational graphs.
-        """
-        if learned_adj is not None and learned_adj.requires_grad:
-            return learned_adj.abs().sum() / learned_adj.numel()
+    def get_graph_regularization(self, learned_adj, prior_adj):
+        """Eq. (11): squared Frobenius distance to the relation-aligned prior.
 
-        return torch.tensor(
-            0.0,
-            device=learned_adj.device if learned_adj is not None else config.DEVICE
-        )
+        Both tensors must have shape (K, N, N). No averaging or implicit
+        broadcasting of the two-dimensional prior across relation channels.
+        """
+        if prior_adj is None or learned_adj.shape != prior_adj.shape:
+            raise ValueError("Graph regularization requires a shape-matched prior tensor")
+        prior_adj = prior_adj.detach().to(device=learned_adj.device, dtype=learned_adj.dtype)
+        return (learned_adj - prior_adj).square().sum()
 
 
 # Tail-aware adaptive sample weighting.
 class AdaBoostWeightManager:
-    """
-    Error-driven tail-aware dynamic reweighting (stable EMA version).
+    """Algorithm 2 boundary-aware DSW; legacy class name retained for callers.
 
-    Core idea is preserved:
-        final_weight = base_weights × multiplier
-
-    - base_weights = original sw_train (never destroyed)
-    - body multiplier = 1.0 (frozen)
-    - tail multiplier = dynamically updated every epoch
-    - update signal = EMA-smoothed prediction error
-    - normalization = robust percentile-based scaling
+    Base weights are 1.2 on the training-defined boundary and 1 in the body.
+    Dynamic multipliers start at 1, so boundary emphasis is applied only once.
     """
 
     def __init__(
@@ -373,7 +364,6 @@ class AdaBoostWeightManager:
             min_tail_multiplier=1.00,
             max_tail_multiplier=1.45,
             update_momentum=0.90,
-            mean_anchor=0.04,
     ):
         self.num_samples = int(num_samples)
         self.boost_lr = float(boost_lr)
@@ -383,7 +373,6 @@ class AdaBoostWeightManager:
         self.min_tail_multiplier = float(min_tail_multiplier)
         self.max_tail_multiplier = float(max_tail_multiplier)
         self.update_momentum = float(update_momentum)
-        self.mean_anchor = float(mean_anchor)
 
 
         self.base_weights = np.asarray(base_weights, dtype=np.float64).copy()
@@ -399,13 +388,16 @@ class AdaBoostWeightManager:
 
 
         self.multipliers = np.ones(self.num_samples, dtype=np.float64)
-        self.multipliers[self.is_tail] = self.tail_boost
+        expected_base = np.where(self.is_tail, self.tail_boost, 1.0)
+        if self.base_weights.shape != (self.num_samples,) or not np.allclose(self.base_weights, expected_base):
+            raise ValueError("Base weights must match Algorithm 2 boundary initialization")
 
 
         self.ema_errors = np.zeros(self.num_samples, dtype=np.float64)
 
 
         self.multiplier_history = [self.multipliers.copy()]
+        self.weight_history = [self.get_combined_weights().copy()]
         self.alpha_history = []
         self.error_history = []
         self.current_round = 0
@@ -446,62 +438,22 @@ class AdaBoostWeightManager:
             return self.get_combined_weights()
 
 
+        # Algorithm 2, lines 8-9: centered EMA error, then momentum update.
         scale = np.percentile(tail_errors, self.robust_q)
-        if (not np.isfinite(scale)) or scale < 1e-10:
-            scale = np.mean(tail_errors)
-        if (not np.isfinite(scale)) or scale < 1e-10:
-            scale = np.max(tail_errors)
-        if (not np.isfinite(scale)) or scale < 1e-10:
-            return self.get_combined_weights()
-
-
-        difficulty = np.clip(self.ema_errors / (scale + 1e-12), 0.0, 1.30)
-
-        tail_difficulty = difficulty[self.is_tail]
-        center = np.median(tail_difficulty)
-        delta = tail_difficulty - center
-
-
-        delta = np.clip(delta, -0.24, 0.24)
-
-        target_tail = self.multipliers[self.is_tail] * np.exp(self.boost_lr * delta)
-
-
-        target_tail = np.clip(
-            target_tail,
-            self.min_tail_multiplier,
-            self.max_tail_multiplier
-        )
-
-
-        tail_mean = target_tail.mean()
-        if tail_mean > 1e-12:
-            anchored_mean = (1.0 - self.mean_anchor) * tail_mean + self.mean_anchor * self.tail_boost
-            target_tail = target_tail * (anchored_mean / tail_mean)
-
-        target_tail = np.clip(
-            target_tail,
-            self.min_tail_multiplier,
-            self.max_tail_multiplier
-        )
-
-
-        current_tail = self.multipliers[self.is_tail]
-        new_tail = (
-            self.update_momentum * current_tail
-            + (1.0 - self.update_momentum) * target_tail
-        )
-
+        difficulty = (tail_errors - np.median(tail_errors)) / (scale + 1e-12)
+        with np.errstate(over="ignore"):
+            target = np.exp(self.boost_lr * difficulty)
         new_tail = np.clip(
-            new_tail,
-            self.min_tail_multiplier,
-            self.max_tail_multiplier
+            self.update_momentum * self.multipliers[self.is_tail]
+            + (1.0 - self.update_momentum) * target,
+            self.min_tail_multiplier, self.max_tail_multiplier,
         )
 
         self.multipliers[self.is_tail] = new_tail
         self.multipliers[~self.is_tail] = 1.0
 
         self.multiplier_history.append(self.multipliers.copy())
+        self.weight_history.append(self.get_combined_weights().copy())
         self.current_round += 1
 
         tail_m = self.multipliers[self.is_tail]
@@ -526,7 +478,11 @@ class AdaBoostWeightManager:
         return torch.FloatTensor(cw)
 
     def get_weight_history(self):
-        """Return multiplier history for visualization."""
+        """Return effective weights w=b*m, before mini-batch normalization."""
+        return np.array(self.weight_history)
+
+    def get_multiplier_history(self):
+        """Return dynamic multipliers separately from effective weights."""
         return np.array(self.multiplier_history)
 
     def get_boosting_stats(self):
@@ -550,8 +506,8 @@ class AdaBoostWeightManager:
 class WeightedMSELoss(nn.Module):
     """
     Weighted MSE Loss with graph regularization.
-    Loss = ξ₀ * Σ(w_i * (ŷ_i - y_i)²) + ξ₁ * L1 + ξ₂ * (e_R / e_full)
-    Following Eq. 15 in reference paper.
+    Loss = xi0 * batch-normalized weighted MSE + xi1 * L1
+           + xi2 * squared Frobenius prior deviation (Eqs. 9-11).
     """
 
     def __init__(self, mse_weight=1.0, l1_weight=0.001, graph_weight=0.01):
@@ -561,14 +517,14 @@ class WeightedMSELoss(nn.Module):
         self.graph_weight = graph_weight
 
     def forward(self, pred, target, sample_weights=None,
-                model=None, learned_adj=None):
+                model=None, learned_adj=None, prior_adj=None):
         """
         Args:
             pred: (B, 1) predictions
             target: (B, 1) targets
             sample_weights: (B,) per-sample weights
             model: the model (for L1 regularization)
-            learned_adj: (K, N, N) learned graph (for sparsity reg)
+            learned_adj: (K, N, N) learned graph (for prior-deviation regularization)
         """
 
         mse_per_sample = (pred - target).pow(2).squeeze(-1)
@@ -595,7 +551,7 @@ class WeightedMSELoss(nn.Module):
 
 
         if learned_adj is not None and self.graph_weight > 0:
-            graph_reg = model.get_graph_regularization(learned_adj)
+            graph_reg = model.get_graph_regularization(learned_adj, prior_adj)
             total_loss = total_loss + self.graph_weight * graph_reg
 
         return total_loss, loss_mse
