@@ -555,19 +555,3 @@ class WeightedMSELoss(nn.Module):
             total_loss = total_loss + self.graph_weight * graph_reg
 
         return total_loss, loss_mse
-
-
-if __name__ == "__main__":
-
-    B, N, K = 16, 22, 16
-    model = GADNet(num_features=N, hidden_dim=64, num_gnn_layers=3,
-                   num_attention_heads=4, num_edge_types=K)
-    x = torch.randn(B, N)
-    node_types = torch.randint(0, 4, (N,))
-    adj_mech = torch.rand(N, N)
-    adj_het = torch.rand(K, N, N)
-    pred, adj, attn_list = model(x, node_types, adj_mech, adj_het)
-    print(f"Pred shape: {pred.shape}")
-    print(f"Learned adj shape: {adj.shape}")
-    print(f"Num attention layers: {len(attn_list)}")
-    print(f"Total params: {sum(p.numel() for p in model.parameters()):,}")

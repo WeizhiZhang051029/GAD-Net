@@ -134,7 +134,6 @@ LOSS_GRAPH_WEIGHT = 0.0008
 
 
 HIT_RATE_THRESHOLD = 10
-WEIGHT_VIS_INTERVAL = 100
 
 
 # Fixed domain bounds are applied before split generation.

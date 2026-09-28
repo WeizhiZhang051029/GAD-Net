@@ -49,8 +49,7 @@ class EarlyStopping:
 
 # Optimize on the training fold and select by validation loss.
 def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
-                  num_epochs=None, use_adaboost=True, verbose=True,
-                  weight_vis_callback=None):
+                  num_epochs=None, use_adaboost=True, verbose=True):
     """
     Train GAD-Net with dynamic tail-aware adaptive sample weighting.
 
@@ -63,7 +62,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         num_epochs: number of training epochs
         use_adaboost: whether to use adaptive sample weighting
         verbose: print training progress
-        weight_vis_callback: callback for weight visualization
     Returns:
         model, history
     """
@@ -184,9 +182,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
 
         scheduler.step()
 
-
-        if weight_vis_callback and epoch % config.WEIGHT_VIS_INTERVAL == 0:
-            weight_vis_callback(epoch, adaboost_mgr)
 
 
         # Validation phase.
