@@ -32,7 +32,7 @@
 This repository provides the official implementation of **GAD-Net**, a knowledge-guided heterogeneous graph attention network for predicting the yield strength of cold-rolled strip steel in continuous annealing production lines (CAPLs).
 
 <p align="center">
-  <img src="images/fig4_workflow.jpg" width="100%" alt="GAD-Net workflow">
+  <img src="images/fig_workflow.jpg" width="100%" alt="GAD-Net workflow">
 </p>
 
 <p align="center"><em>Overall workflow of GAD-Net for CAPL yield-strength prediction.</em></p>
@@ -50,7 +50,7 @@ GAD-Net is a knowledge-guided heterogeneous graph attention network for yield-st
 ## 🧩 Framework
 
 <p align="center">
-  <img src="images/fig7_framework.jpg" width="100%" alt="GAD-Net framework">
+  <img src="images/fig_framework.jpg" width="100%" alt="GAD-Net framework">
 </p>
 
 The training workflow is organized as follows:
@@ -86,7 +86,7 @@ Evaluation on the held-out test fold
 The industrial application context is shown below.
 
 <p align="center">
-  <img src="images/fig5_application.jpg" width="100%" alt="CAPL application scenario">
+  <img src="images/fig_application.jpg" width="100%" alt="CAPL application scenario">
 </p>
 
 <p align="center"><em>Application scenario for CAPL yield-strength prediction.</em></p>
@@ -164,9 +164,9 @@ The pipeline sequentially performs data loading, fold-specific preprocessing, gr
 ```text
 GAD-Net/
 ├── images/
-│   ├── fig4_workflow.jpg
-│   ├── fig5_application.jpg
-│   └── fig7_framework.jpg
+│   ├── fig_workflow.jpg
+│   ├── fig_application.jpg
+│   └── fig_framework.jpg
 ├── models/
 │   ├── gad_net.py
 │   └── __init__.py
@@ -240,3 +240,4 @@ If you use GAD-Net in your research, please cite the accompanying manuscript:
 ## 📬 Contact
 
 For questions about the implementation, experimental configuration, or reproducibility, please open an issue in the repository.
+
