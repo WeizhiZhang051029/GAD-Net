@@ -145,7 +145,7 @@ pip install -r requirements.txt
 
 Install a PyTorch build compatible with your CUDA driver if GPU training is required.
 
-## 🚀 Running the Experiment
+## 🚀 Running
 
 From the repository root:
 
@@ -159,52 +159,6 @@ python main.py \
 
 The pipeline sequentially performs data loading, fold-specific preprocessing, graph construction, adaptive graph learning, model training, validation-based model selection, and held-out evaluation.
 
-## 📁 Repository Structure
-
-```text
-GAD-Net/
-├── images/
-│   ├── fig_workflow.jpg
-│   ├── fig_application.jpg
-│   └── fig_framework.jpg
-├── models/
-│   ├── gad_net.py
-│   └── __init__.py
-├── config.py
-├── data_preprocessing.py
-├── fold_preprocessing.py
-├── graph_construction.py
-├── evaluate.py
-├── train.py
-├── main.py
-├── requirements.txt
-└── README.md
-```
-
-The main components are organized as follows:
-
-* `models/`: GAD-Net architecture, graph learning, and attention modules.
-* `graph_construction.py`: mechanism-prior topology and adaptive graph initialization.
-* `data_preprocessing.py`: dataset loading and general preprocessing utilities.
-* `fold_preprocessing.py`: leakage-safe fold-specific preprocessing.
-* `train.py`: model optimization and training procedures.
-* `evaluate.py`: prediction evaluation and metric calculation.
-* `main.py`: complete cross-validation experiment pipeline.
-
-## 📦 Outputs
-
-Experimental results are written under:
-
-```text
-results_5fold_cv/
-├── checkpoints/
-├── predictions/
-├── metrics/
-├── logs/
-└── main_summary.json
-```
-
-The output files contain model checkpoints, fold-level predictions, evaluation metrics, training logs, and experiment summaries.
 
 ## 📏 Evaluation Metrics
 
