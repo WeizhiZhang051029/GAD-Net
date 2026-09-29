@@ -99,21 +99,6 @@ All preprocessing steps, including standardization and dynamic sample-weight est
 
 The runner records fold-level predictions, metrics, and training logs, and reports the mean and sample standard deviation across folds. Metrics include **RMSE, MAE, MAPE, R²**, and **BR_MAE**. Paired significance tests are performed using matched evaluation folds.
 
-## ⚙️ Configuration
-
-Representative settings are summarized below. The complete implementation settings are defined in the source files and can be adjusted through the model configuration.
-
-| Component | Setting |
-| --- | --- |
-| Task | Cold-rolled strip steel yield-strength prediction |
-| Production data | 1000 CAPL records, 22 process variables |
-| Validation strategy | Five-fold stratified cross-validation |
-| Independent seeds | 5 |
-| Graph type | Knowledge-guided heterogeneous graph |
-| Graph refinement | Prior-constrained adaptive topology learning |
-| Attention mechanism | Multi-head heterogeneous graph attention |
-| Optimization | Dynamic sample-weighted training |
-| Evaluation | RMSE, MAE, MAPE, R², and BR_MAE |
 
 ## 🛠️ Installation
 
