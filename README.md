@@ -93,11 +93,11 @@ The industrial application context is shown below.
 
 ## 📊 Experimental Protocol
 
-The default experiment uses **1000 industrial CAPL production records**, **22 process variables**, five independent random seeds, and five stratified folds. Stratification follows the yield strength distribution.
+The default setting uses **1,000 industrial CAPL records** with **22 process variables**. Experiments are conducted with **five random seeds** and **five-fold stratified cross-validation** based on yield strength distribution.
 
-For each fold, input standardization and dynamic sample-weight parameters are fitted using the training portion only. The validation portion is used for early stopping and model selection and the held-out test fold is evaluated after training.
+All preprocessing steps, including standardization and dynamic sample-weight estimation, are fitted using the training split only. Validation splits are used for early stopping and model selection, while held-out test splits are used for final evaluation.
 
-The runner records fold-level predictions, metrics, and training logs, then summarizes mean performance, sample standard deviation. Reported metrics include RMSE, MAE, MAPE, R², and boundary-region (BR)_MAE. Paired significance tests are also conducted for model comparisons using matched evaluation folds.
+The runner records fold-level predictions, metrics, and training logs, and reports the mean and sample standard deviation across folds. Metrics include **RMSE, MAE, MAPE, R²**, and **BR_MAE**. Paired significance tests are performed using matched evaluation folds.
 
 ## ⚙️ Configuration
 
