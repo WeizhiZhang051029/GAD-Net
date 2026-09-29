@@ -173,6 +173,9 @@ If you use GAD-Net in your research, please cite the accompanying manuscript:
 }
 ```
 
+
+The citation information will be updated after the paper is officially published.
+
 ## 📬 Contact
 
 For questions about the implementation, experimental configuration, or reproducibility, please open an issue in the repository.
