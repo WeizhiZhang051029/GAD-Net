@@ -75,6 +75,9 @@ Validation-based early stopping
         |
         v
 Held-out test evaluation
+        |
+        v
+Aggregation across 25 runs
 ```
 
 The industrial application context is shown below.
