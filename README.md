@@ -62,25 +62,22 @@ Authorized CAPL production data
 Physical admissibility checks
         |
         v
-Repeated stratified five-fold partitioning
+Stratified five-fold CV repeated with five seeds
         |
         v
-Training-fold-only standardization and weighting setup
+Training-fold-only preprocessing and graph construction
         |
         v
-Mechanism-prior graph construction
+Prior-gated adaptive heterogeneous graph learning
         |
         v
-Prior-constrained adaptive graph learning
+Validation-based early stopping
         |
         v
-Heterogeneous graph attention prediction
+Held-out test evaluation
         |
         v
-Validation-based early stopping and model selection
-        |
-        v
-Evaluation on the held-out test fold
+Aggregation across 25 runs
 ```
 
 The industrial application context is shown below.
