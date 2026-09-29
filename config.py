@@ -6,17 +6,9 @@ import torch
 # Paths and runtime settings.
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(PROJECT_ROOT, "data", "CAPL.csv")
-RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
-FIGURES_DIR = os.path.join(PROJECT_ROOT, "figures")
-MODELS_DIR = os.path.join(PROJECT_ROOT, "saved_models")
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-
-FIG_FORMATS = ["pdf", "svg"]
-
 
 COLUMN_NAME_MAP = {
     "屈服强度":         "Yield_Strength",
@@ -44,31 +36,7 @@ COLUMN_NAME_MAP = {
     "[P]":              "P_Content",
 }
 
-COLUMN_NAME_MAP_INV = {v: k for k, v in COLUMN_NAME_MAP.items()}
-
-
-SHORT_NAMES = {
-    'Furnace_Speed': 'FS', 'JPF_Preheat_Temp': 'JPF-PT',
-    'Heating_Furnace_Temp': 'HF-T', 'Soaking_Furnace_Temp': 'SF-T',
-    'Slow_Cooling_Temp': 'SC-T', 'Fast_Cooling1_Temp': 'FC1-T',
-    'Overaging_Furnace_Temp': 'OA-T', 'Fast_Cooling2_Temp': 'FC2-T',
-    'Quenching_Temp': 'Q-T', 'Elongation': 'EL',
-    'Rolling_Force': 'RF', 'Bending_Force': 'BF',
-    'Heating_Temp': 'HT', 'Finish_Rolling_Temp': 'FRT',
-    'Coiling_Temp': 'CT', 'Actual_Thickness': 'ATh',
-    'Actual_Width': 'AWd', 'Cold_Rolling_Reduction': 'CRR',
-    'C_Content': 'C', 'Mn_Content': 'Mn', 'S_Content': 'S', 'P_Content': 'P',
-}
-
-def short(name):
-    """获取特征的缩写名，如果没有定义缩写则截取前12个字符。"""
-    return SHORT_NAMES.get(name, name[:12])
-
-
 TARGET_COL = "Yield_Strength"
-TEST_RATIO = 0.15
-VAL_RATIO = 0.15
-TRAIN_RATIO = 1 - TEST_RATIO - VAL_RATIO
 
 
 NODE_TYPE_MAP = {
@@ -85,14 +53,10 @@ NODE_TYPE_MAP = {
     "Cold_Rolling_Reduction": 2,
     "C_Content": 3, "Mn_Content": 3, "S_Content": 3, "P_Content": 3,
 }
-NODE_TYPE_LABELS = {
-    0: "Operating", 1: "Procedure", 2: "Conditional", 3: "Composition"
-}
 NUM_NODE_TYPES = 4
 NUM_EDGE_TYPES = NUM_NODE_TYPES * NUM_NODE_TYPES
 
 CORRELATION_THRESHOLD = 0.23
-MUTUAL_INFO_THRESHOLD = 0.10
 KNOWLEDGE_GATE_BETA = 0.9
 GATE_SLOPE_MU = 1.8
 
@@ -104,14 +68,11 @@ DROPOUT = 0.20
 NODE_EMBED_DIM = 24
 
 
-ADABOOST_NUM_ROUNDS = 5
 ADABOOST_LEARNING_RATE = 0.024
 ADABOOST_TAIL_BOOST = 1.20
 ADABOOST_TAIL_PERCENTILE = 10
 
 
-ADABOOST_WARMUP_EPOCHS = 0
-ADABOOST_UPDATE_INTERVAL = 1
 ADABOOST_ERROR_EMA = 0.96
 ADABOOST_MIN_TAIL_MULTIPLIER = 1.00
 ADABOOST_MAX_TAIL_MULTIPLIER = 1.45

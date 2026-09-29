@@ -101,12 +101,12 @@ def run_main(data_path, device, output):
             previous_device = config.DEVICE
             config.DEVICE = device
             try:
-                model, _ = train_gad_net(
+                model = train_gad_net(
                     model, train_loader, val_loader, graph, data,
                     use_adaboost=True, verbose=False)
                 predicted, observed, _ = evaluate_model(
                     model, test_loader, data["scaler_y"], graph_data=graph,
-                    model_type="gad_net", tail_bounds=data["tail_bounds"])
+                    tail_bounds=data["tail_bounds"])
             finally:
                 config.DEVICE = previous_device
             metrics = compute_all_metrics(observed, predicted,

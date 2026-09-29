@@ -33,7 +33,12 @@ def compute_corr(y_true, y_pred):
     y_pred = np.asarray(y_pred)
     if y_true.size < 2 or np.std(y_true) == 0 or np.std(y_pred) == 0:
         return 0.0
-    r, _ = stats.pearsonr(y_true, y_pred)
+    centered_true = y_true - np.mean(y_true)
+    centered_pred = y_pred - np.mean(y_pred)
+    denominator = np.sqrt(np.sum(centered_true ** 2) * np.sum(centered_pred ** 2))
+    if denominator == 0:
+        return 0.0
+    r = np.sum(centered_true * centered_pred) / denominator
     return float(r) if np.isfinite(r) else 0.0
 
 
@@ -92,56 +97,3 @@ def compute_all_metrics(y_true, y_pred, tail_bounds=None):
 
 
     return metrics
-
-
-def format_metrics(metrics, prefix=""):
-    """Format metrics dict as a readable string."""
-    parts = []
-
-    keys_order = ["MAE", "RMSE", "R2", "HR", "Tail_HR", "Tail_MAE", "MAPE", "CORR"]
-
-    for k in keys_order:
-        if k in metrics:
-            v = metrics[k]
-            if "HR" in k or "MAPE" in k:
-                parts.append(f"{prefix}{k}: {v:.2f}%")
-            elif k in ["R2", "CORR"]:
-                parts.append(f"{prefix}{k}: {v:.4f}")
-            else:
-                parts.append(f"{prefix}{k}: {v:.4f}")
-
-
-    for k, v in metrics.items():
-        if k not in keys_order:
-            parts.append(f"{prefix}{k}: {v:.4f}")
-
-    return " | ".join(parts)
-
-
-def aggregate_run_metrics(all_metrics_list):
-    """
-    Aggregate metrics from multiple independent runs.
-
-    Args:
-        all_metrics_list: list of metric dicts from each run
-    Returns:
-        agg: dict of metric_name -> {"mean": ..., "std": ...}
-    """
-    agg = {}
-    keys = all_metrics_list[0].keys()
-    for k in keys:
-        vals = np.asarray([m[k] for m in all_metrics_list], dtype=float)
-        n = len(vals)
-        mean = float(np.mean(vals))
-        std = float(np.std(vals, ddof=1)) if n > 1 else 0.0
-        half = 1.96 * std / np.sqrt(n) if n > 1 else 0.0
-        agg[k] = {
-            "mean": mean,
-            "std": std,
-            "ci95_low": mean - half,
-            "ci95_high": mean + half,
-            "min": float(np.min(vals)),
-            "max": float(np.max(vals)),
-            "values": vals.tolist(),
-        }
-    return agg

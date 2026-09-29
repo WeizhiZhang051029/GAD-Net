@@ -29,7 +29,6 @@ class MultiHeadAttention(nn.Module):
             x: (B, N, D) - batch of node features
         Returns:
             out: (B, N, D) attended features
-            attn_weights: (B, H, N, N) attention weights
         """
         B, N, D = x.shape
         Q = self.W_Q(x).view(B, N, self.num_heads, self.d_k).transpose(1, 2)
@@ -43,7 +42,7 @@ class MultiHeadAttention(nn.Module):
         context = attn_weights @ V
         context = context.transpose(1, 2).contiguous().view(B, N, D)
         out = self.W_O(context)
-        return out, attn_weights
+        return out
 
 
 # Relational graph convolution with basis decomposition.
@@ -150,10 +149,9 @@ class GNNAttentionBlock(nn.Module):
             adj_tensor: (K, N, N) heterogeneous adjacency tensor
         Returns:
             out: (B, N, D) updated features
-            attn_weights: (B, H, N, N) attention weights
         """
 
-        attn_out, attn_weights = self.attention(x)
+        attn_out = self.attention(x)
         x = self.norm1(x + attn_out)
 
 
@@ -164,7 +162,7 @@ class GNNAttentionBlock(nn.Module):
         ffn_out = self.ffn(x)
         x = self.norm3(x + ffn_out)
 
-        return x, attn_weights
+        return x
 
 
 # Main GAD-Net architecture.
@@ -265,7 +263,6 @@ class GADNet(nn.Module):
         Returns:
             pred: (B, 1) predictions
             learned_adj: (K, N, N) learned adjacency tensor
-            attn_weights_list: list of attention weight tensors
         """
         B, N = x.shape
 
@@ -279,7 +276,7 @@ class GADNet(nn.Module):
 
             mech = adj_mechanism if self.use_knowledge_gate else None
             het = adj_het_structure if self.use_hetero else None
-            learned_adj, a_G = self.graph_learning(node_types, mech, het)
+            learned_adj = self.graph_learning(node_types, mech, het)
         else:
 
 
@@ -302,16 +299,11 @@ class GADNet(nn.Module):
 
                 learned_adj = torch.ones(K, N, N, device=x.device)
 
-            a_G = None
-
-
         layer_outputs = []
-        attn_weights_list = []
 
-        for l, block in enumerate(self.gnn_blocks):
+        for block in self.gnn_blocks:
             if self.use_attention:
-                h, attn_w = block(h, learned_adj)
-                attn_weights_list.append(attn_w)
+                h = block(h, learned_adj)
             else:
                 h_rgcn = block['rgcn'](h, learned_adj)
                 h_ffn = block['ffn'](h_rgcn)
@@ -329,7 +321,7 @@ class GADNet(nn.Module):
         h_flat = h_fused.reshape(B, -1)
         pred = self.output_head(h_flat)
 
-        return pred, learned_adj, attn_weights_list
+        return pred, learned_adj
 
     def get_graph_regularization(self, learned_adj, prior_adj):
         """Eq. (11): squared Frobenius distance to the relation-aligned prior.
@@ -470,16 +462,6 @@ class AdaBoostWeightManager:
         if indices is not None:
             return torch.FloatTensor(cw[indices])
         return torch.FloatTensor(cw)
-
-    def get_tail_stats(self):
-        """Convenient monitoring stats."""
-        tail_m = self.multipliers[self.is_tail]
-        return {
-            "tail_min": float(tail_m.min()) if tail_m.size > 0 else 1.0,
-            "tail_max": float(tail_m.max()) if tail_m.size > 0 else 1.0,
-            "tail_mean": float(tail_m.mean()) if tail_m.size > 0 else 1.0,
-        }
-
 
 # Weighted objective with graph regularization.
 class WeightedMSELoss(nn.Module):

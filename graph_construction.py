@@ -5,12 +5,11 @@ Builds heterogeneous graph from mechanism knowledge + data mining.
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import config
 
 
 # Encode process relations supplied by domain knowledge.
-def build_mechanism_knowledge_graph(feature_names, node_types):
+def build_mechanism_knowledge_graph(feature_names):
     """Build mechanism knowledge graph based on CAPL process domain knowledge."""
     N = len(feature_names)
     adj = np.zeros((N, N), dtype=np.float32)
@@ -97,7 +96,7 @@ def build_heterogeneous_adjacency_tensor(adj_combined, node_types):
 def build_full_graph(data_dict):
     feature_names = data_dict["feature_names"]
     node_types = data_dict["node_types"]
-    adj_mechanism = build_mechanism_knowledge_graph(feature_names, node_types)
+    adj_mechanism = build_mechanism_knowledge_graph(feature_names)
     adj_data = build_data_driven_graph(
         data_dict["corr_matrix"], data_dict["mi_scores"], feature_names)
     adj_combined = np.maximum(adj_mechanism, adj_data)
@@ -185,4 +184,4 @@ class AdaptiveGraphLearningLayer(nn.Module):
         else:
             A = raw_A.unsqueeze(0)
 
-        return A, a_G
+        return A
