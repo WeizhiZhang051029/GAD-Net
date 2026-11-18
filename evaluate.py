@@ -1,7 +1,3 @@
-"""
-Evaluation Module
-Computes all metrics: MAE, MSE, RMSE, MAPE, R2, CORR, HR
-"""
 import numpy as np
 import config
 
@@ -43,21 +39,13 @@ def compute_corr(y_true, y_pred):
 
 
 def compute_hit_rate(y_true, y_pred, threshold=None):
-    """
-    Hit Rate: percentage of samples where |pred - true| < threshold.
-    Following Eq. 16 in reference paper.
-    """
     if threshold is None:
         threshold = config.HIT_RATE_THRESHOLD
     hits = np.abs(y_true - y_pred) < threshold
     return np.mean(hits) * 100
 
 
-# Report overall metrics and metrics on the training-defined tail region.
 def compute_all_metrics(y_true, y_pred, tail_bounds=None):
-    """
-    Compute all evaluation metrics, INCLUDING TAIL PERFORMANCE.
-    """
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
 
@@ -79,7 +67,6 @@ def compute_all_metrics(y_true, y_pred, tail_bounds=None):
         lower_q, upper_q = map(float, tail_bounds)
 
 
-    # Use bounds fitted on the training fold when they are supplied.
     tail_mask = (y_true <= lower_q) | (y_true >= upper_q)
 
 

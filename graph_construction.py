@@ -1,7 +1,3 @@
-"""
-Graph Construction Module - English parameter names throughout
-Builds heterogeneous graph from mechanism knowledge + data mining.
-"""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,7 +6,6 @@ import config
 
 # Encode process relations supplied by domain knowledge.
 def build_mechanism_knowledge_graph(feature_names):
-    """Build mechanism knowledge graph based on CAPL process domain knowledge."""
     N = len(feature_names)
     adj = np.zeros((N, N), dtype=np.float32)
     n2i = {name: i for i, name in enumerate(feature_names)}
@@ -91,8 +86,6 @@ def build_heterogeneous_adjacency_tensor(adj_combined, node_types):
     print(f"[Graph] Heterogeneous tensor: {active} active edge types")
     return adj_tensor
 
-
-# Merge the fixed prior with train-only data-driven relations.
 def build_full_graph(data_dict):
     feature_names = data_dict["feature_names"]
     node_types = data_dict["node_types"]
@@ -113,9 +106,7 @@ def build_full_graph(data_dict):
     }
 
 
-# Learn a globally shared soft topology gated by the mechanism prior.
 class AdaptiveGraphLearningLayer(nn.Module):
-    """Adaptive GL Layer with Knowledge-Gated Unit (Algorithm 1)."""
     def __init__(self, num_nodes, node_embed_dim, num_edge_types,
                  knowledge_gate_beta=1.0, gate_slope_mu=3.0,
                  use_node_embed=True):

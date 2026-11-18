@@ -1,5 +1,3 @@
-
-"""Run the manuscript protocol: stratified five-fold CV repeated with five seeds."""
 import argparse
 import json
 import os
@@ -18,11 +16,8 @@ from models.gad_net import GADNet
 from train import evaluate_model, train_gad_net
 from evaluate import compute_all_metrics
 
-SEEDS = (48, 60, 72, 66, 67)
-
 
 def set_run_seed(seed):
-    """Set all available RNGs for one matched fold-seed evaluation."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -50,7 +45,6 @@ def make_model(num_features):
     )
 
 
-# Stratify by yield-strength deciles and evaluate each test fold once.
 def split_plan(y, seed):
     labels = pd.qcut(y, q=10, labels=False, duplicates="drop").astype(int)
     indices = np.arange(len(y))
@@ -85,7 +79,6 @@ def aggregate(rows):
         }
     return result
 
-# Run the repeated five-fold protocol.
 def run_main(data_path, device, output):
     os.makedirs(output, exist_ok=True)
     target = load_raw_data(data_path)[config.TARGET_COL].to_numpy(dtype=float)

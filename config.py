@@ -1,9 +1,7 @@
-"""Configuration for the public GAD-Net experiment."""
 import os
 import torch
 
 
-# Paths and runtime settings.
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(PROJECT_ROOT, "data", "CAPL.csv")
 
@@ -78,9 +76,6 @@ ADABOOST_MIN_TAIL_MULTIPLIER = 1.00
 ADABOOST_MAX_TAIL_MULTIPLIER = 1.45
 ADABOOST_ROBUST_QUANTILE = 80.0
 ADABOOST_UPDATE_MOMENTUM = 0.90
-# Table 3 lists mean-anchor=0.04, but Algorithm 2 contains no anchoring step.
-# Follow Algorithm 2 exactly: no mean anchoring is applied.
-
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-4
@@ -97,7 +92,6 @@ LOSS_GRAPH_WEIGHT = 0.0008
 HIT_RATE_THRESHOLD = 10
 
 
-# Fixed domain bounds are applied before split generation.
 PHYSICAL_BOUNDS = {
     "Yield_Strength": (0.0, None),
     "Furnace_Speed": (0.0, None),

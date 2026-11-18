@@ -1,7 +1,3 @@
-"""
-Training Pipeline for GAD-Net
-Includes: training loop, AdaBoost weight updates, early stopping, logging
-"""
 import numpy as np
 import torch
 import torch.optim as optim
@@ -11,9 +7,8 @@ from models.gad_net import AdaBoostWeightManager, WeightedMSELoss
 from evaluate import compute_all_metrics
 from graph_construction import build_heterogeneous_adjacency_tensor
 
-
+#Early stopping with patience.
 class EarlyStopping:
-    """Early stopping with patience."""
     def __init__(self, patience=30, min_delta=1e-6, mode="min"):
         self.patience = patience
         self.min_delta = min_delta
@@ -46,21 +41,7 @@ class EarlyStopping:
 # Optimize on the training fold and select by validation loss.
 def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
                   num_epochs=None, use_adaboost=True, verbose=True):
-    """
-    Train GAD-Net with dynamic tail-aware adaptive sample weighting.
 
-    Args:
-        model: GADNet instance
-        train_loader: training DataLoader
-        val_loader: validation DataLoader
-        graph_data: graph structure data
-        data_dict: preprocessed data dictionary
-        num_epochs: number of training epochs
-        use_adaboost: whether to use adaptive sample weighting
-        verbose: print training progress
-    Returns:
-        trained model
-    """
     if num_epochs is None:
         num_epochs = config.NUM_EPOCHS
 
@@ -71,7 +52,7 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
     node_types = graph_data["node_types"].to(device)
     adj_mechanism = graph_data["adj_mechanism"].to(device)
     adj_het = graph_data["adj_het_tensor"].to(device)
-    # Relation-aligned mechanistic prior used by Eq. (11).
+
     if model.use_hetero:
         prior_adj = torch.as_tensor(build_heterogeneous_adjacency_tensor(
             graph_data["adj_mechanism"].cpu().numpy(),
@@ -130,7 +111,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
     for epoch in range(1, num_epochs + 1):
 
 
-        # Training phase.
         model.train()
         all_train_preds = []
         all_train_targets = []
@@ -174,8 +154,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
         scheduler.step()
 
 
-
-        # Validation phase.
         model.eval()
         val_losses = []
 
@@ -215,7 +193,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
             )
 
 
-    # Restore the checkpoint with the best validation loss.
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         model = model.to(device)
@@ -227,9 +204,6 @@ def train_gad_net(model, train_loader, val_loader, graph_data, data_dict,
 
 
 def evaluate_model(model, test_loader, scaler_y, graph_data, tail_bounds=None):
-    """
-    Evaluate model on test set, returning predictions and metrics.
-    """
     device = config.DEVICE
     model.eval()
     all_preds, all_targets = [], []

@@ -1,4 +1,3 @@
-"""Leakage-safe preprocessing for stratified K-fold experiments."""
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from data_preprocessing import (
@@ -9,7 +8,6 @@ import config
 
 
 def prepare_index_split(data_path, train_idx, val_idx, test_idx):
-    """Fit every preprocessing object on train_idx and apply it to val/test."""
     df = load_raw_data(data_path)
     feature_names = [c for c in df.columns if c != config.TARGET_COL]
     X_raw = df[feature_names].to_numpy(dtype=np.float64)

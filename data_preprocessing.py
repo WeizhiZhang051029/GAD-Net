@@ -1,7 +1,3 @@
-"""
-Data Preprocessing Module for CAPL Steel Quality Prediction
-Handles: loading (with CN->EN renaming), cleaning, normalization, splitting
-"""
 import numpy as np
 import pandas as pd
 import torch
@@ -12,9 +8,7 @@ warnings.filterwarnings("ignore")
 import config
 
 
-# Apply fixed physical bounds before creating data splits.
 def apply_physical_constraints(df):
-    """Remove records outside fixed physical admissibility bounds."""
     mask = pd.Series(True, index=df.index)
     for column, (lower, upper) in config.PHYSICAL_BOUNDS.items():
         if column not in df.columns:
@@ -62,7 +56,6 @@ def load_raw_data(path=None):
 
 
 def compute_boundary_weights(y, percentile=None, boundary_weight=None):
-    """Algorithm 2: boundary-only base weights, fitted on training labels."""
     percentile = config.ADABOOST_TAIL_PERCENTILE if percentile is None else percentile
     boundary_weight = config.ADABOOST_TAIL_BOOST if boundary_weight is None else boundary_weight
     y = np.asarray(y, dtype=float).ravel()

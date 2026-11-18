@@ -1,4 +1,3 @@
-"""Knowledge-guided adaptive graph network for steel quality prediction."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,12 +23,6 @@ class MultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        """
-        Args:
-            x: (B, N, D) - batch of node features
-        Returns:
-            out: (B, N, D) attended features
-        """
         B, N, D = x.shape
         Q = self.W_Q(x).view(B, N, self.num_heads, self.d_k).transpose(1, 2)
         K = self.W_K(x).view(B, N, self.num_heads, self.d_k).transpose(1, 2)
@@ -45,14 +38,8 @@ class MultiHeadAttention(nn.Module):
         return out
 
 
-# Relational graph convolution with basis decomposition.
-class RGCNLayer(nn.Module):
-    """
-    Relational Graph Convolutional Network Layer.
-    Handles heterogeneous edge types via basis decomposition.
-    Following Eq. 12-13 in reference paper.
-    """
 
+class RGCNLayer(nn.Module):
     def __init__(self, in_dim, out_dim, num_edge_types, num_bases=4, dropout=0.1):
         super().__init__()
         self.in_dim = in_dim
@@ -79,13 +66,6 @@ class RGCNLayer(nn.Module):
         nn.init.xavier_uniform_(self.coefficients)
 
     def forward(self, x, adj_tensor):
-        """
-        Args:
-            x: (B, N, D_in) node features
-            adj_tensor: (K, N, N) heterogeneous adjacency tensor
-        Returns:
-            out: (B, N, D_out) updated node features
-        """
         B, N, D = x.shape
 
 
@@ -117,13 +97,6 @@ class RGCNLayer(nn.Module):
 
 
 class GNNAttentionBlock(nn.Module):
-    """
-    Single GNN-Attention block combining:
-    1. Multi-head self-attention (intra-node temporal-like attention)
-    2. RGCN for spatial (inter-node) aggregation
-    3. FFN for deep feature interaction
-    4. Residual connections + LayerNorm
-    """
 
     def __init__(self, hidden_dim, num_edge_types, num_heads=4,
                  num_bases=4, dropout=0.1):
@@ -143,13 +116,6 @@ class GNNAttentionBlock(nn.Module):
         self.norm3 = nn.LayerNorm(hidden_dim)
 
     def forward(self, x, adj_tensor):
-        """
-        Args:
-            x: (B, N, D) node features
-            adj_tensor: (K, N, N) heterogeneous adjacency tensor
-        Returns:
-            out: (B, N, D) updated features
-        """
 
         attn_out = self.attention(x)
         x = self.norm1(x + attn_out)
@@ -167,7 +133,6 @@ class GNNAttentionBlock(nn.Module):
 
 # Main GAD-Net architecture.
 class GADNet(nn.Module):
-    """GAD-Net architecture with prior-guided graph learning and attention."""
 
     def __init__(self, num_features, hidden_dim=64, num_gnn_layers=3,
                  num_attention_heads=4, num_edge_types=16, dropout=0.2,
@@ -250,20 +215,6 @@ class GADNet(nn.Module):
 
     def forward(self, x, node_types, adj_mechanism=None,
                 adj_het_structure=None, adj_fixed=None):
-        """
-        Forward pass.
-
-        Args:
-            x: (B, N) input features (each sample has N feature values)
-            node_types: (N,) node type indices
-            adj_mechanism: (N, N) mechanism knowledge graph
-            adj_het_structure: (K, N, N) heterogeneous structure template
-            adj_fixed: (K, N, N) fixed adjacency (when graph learning is off)
-
-        Returns:
-            pred: (B, 1) predictions
-            learned_adj: (K, N, N) learned adjacency tensor
-        """
         B, N = x.shape
 
 
@@ -324,24 +275,15 @@ class GADNet(nn.Module):
         return pred, learned_adj
 
     def get_graph_regularization(self, learned_adj, prior_adj):
-        """Eq. (11): squared Frobenius distance to the relation-aligned prior.
 
-        Both tensors must have shape (K, N, N). No averaging or implicit
-        broadcasting of the two-dimensional prior across relation channels.
-        """
         if prior_adj is None or learned_adj.shape != prior_adj.shape:
             raise ValueError("Graph regularization requires a shape-matched prior tensor")
         prior_adj = prior_adj.detach().to(device=learned_adj.device, dtype=learned_adj.dtype)
         return (learned_adj - prior_adj).square().sum()
 
 
-# Tail-aware adaptive sample weighting.
+# Adaptive sample weighting.
 class AdaBoostWeightManager:
-    """Algorithm 2 boundary-aware DSW; legacy class name retained for callers.
-
-    Base weights are 1.2 on the training-defined boundary and 1 in the body.
-    Dynamic multipliers start at 1, so boundary emphasis is applied only once.
-    """
 
     def __init__(
             self,
@@ -402,16 +344,6 @@ class AdaBoostWeightManager:
         )
 
     def update_weights(self, errors, epoch):
-        """
-        Update tail multipliers EVERY EPOCH with small, smooth steps.
-
-        Steps:
-        1) EMA smooth the per-sample absolute errors
-        2) Use robust percentile scaling inside tail samples
-        3) Center tail difficulty by median (not mean)
-        4) Exponential small-step update
-        5) Momentum-style smoothing on multipliers
-        """
         errors = np.abs(np.asarray(errors, dtype=np.float64))
         if errors.shape[0] != self.num_samples:
             raise ValueError(
@@ -425,8 +357,6 @@ class AdaBoostWeightManager:
         if tail_errors.size == 0:
             return self.get_combined_weights()
 
-
-        # Algorithm 2, lines 8-9: centered EMA error, then momentum update.
         scale = np.percentile(tail_errors, self.robust_q)
         difficulty = (tail_errors - np.median(tail_errors)) / (scale + 1e-12)
         with np.errstate(over="ignore"):
@@ -453,11 +383,9 @@ class AdaBoostWeightManager:
         return self.get_combined_weights()
 
     def get_combined_weights(self):
-        """Return actual training weights = base_weights × multipliers."""
         return self.base_weights * self.multipliers
 
     def get_weights_tensor(self, indices=None):
-        """Get combined weights as a PyTorch tensor."""
         cw = self.get_combined_weights()
         if indices is not None:
             return torch.FloatTensor(cw[indices])
@@ -465,11 +393,6 @@ class AdaBoostWeightManager:
 
 # Weighted objective with graph regularization.
 class WeightedMSELoss(nn.Module):
-    """
-    Weighted MSE Loss with graph regularization.
-    Loss = xi0 * batch-normalized weighted MSE + xi1 * L1
-           + xi2 * squared Frobenius prior deviation (Eqs. 9-11).
-    """
 
     def __init__(self, mse_weight=1.0, l1_weight=0.001, graph_weight=0.01):
         super().__init__()
@@ -479,14 +402,6 @@ class WeightedMSELoss(nn.Module):
 
     def forward(self, pred, target, sample_weights=None,
                 model=None, learned_adj=None, prior_adj=None):
-        """
-        Args:
-            pred: (B, 1) predictions
-            target: (B, 1) targets
-            sample_weights: (B,) per-sample weights
-            model: the model (for L1 regularization)
-            learned_adj: (K, N, N) learned graph (for prior-deviation regularization)
-        """
 
         mse_per_sample = (pred - target).pow(2).squeeze(-1)
         if sample_weights is not None:
