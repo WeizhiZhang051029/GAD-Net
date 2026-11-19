@@ -33,6 +33,10 @@ def build_mechanism_knowledge_graph(feature_names):
                 adj[n2i[cp], n2i[mp]] = 1.0
 
 
+    if "C_Content" in n2i and "Mn_Content" in n2i:
+        adj[n2i["C_Content"], n2i["Mn_Content"]] = 1.0
+        adj[n2i["Mn_Content"], n2i["C_Content"]] = 1.0
+
     for hp in ["Heating_Temp", "Finish_Rolling_Temp", "Coiling_Temp"]:
         for cp in ["Cold_Rolling_Reduction", "Actual_Thickness"]:
             if hp in n2i and cp in n2i:
